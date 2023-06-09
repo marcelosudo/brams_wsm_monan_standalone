@@ -2,8 +2,12 @@ DSRC2=../src
 #F_COMP=ifort
 #F_OPTS= -O0 -r8 -check bounds -traceback -check uninit# -prof-gen #-fpe0
 
-F_COMP=gfortran
-F_OPTS= -O0 -fcheck=bounds -fbacktrace -ffree-line-length-200 # -fdefault-real-8
+#F_COMP=nvfortran
+F_COMP=pgf90
+F_OPTS= -acc -Minfo=accel
+#F_OPTS= -fast -O3 -fastsse  -acc -Minfo=accel -Munroll=n:4
+#F_COMP=gfortran
+#F_OPTS= -O0 -fcheck=bounds -fbacktrace -ffree-line-length-200 # -fdefault-real-8
 #F_OPTS= -O0 -ffree-form -fno-range-check -ffree-line-length-none -Wall -fbacktrace -g -fcheck=bounds -fcheck=all -finit-real=nan  -fallow-argument-mismatch
 
 #F_OPTS=  -O0 -fpe2 -ftrapuv -check bounds -traceback -init=snan,arrays  -check uninit  # -ftz  -check uninit -check all -g #-r8 
@@ -23,7 +27,7 @@ F_OPTS= -O0 -fcheck=bounds -fbacktrace -ffree-line-length-200 # -fdefault-real-8
 #  -finit-real=zero -Wall
 
 LOADER=$(F_COMP)
-LOADER_OPTS=-v #-Bstatic -check_bounds -traceback #-Mlarge_arrays
+LOADER_OPTS=-acc -v #-Bstatic -check_bounds -traceback #-Mlarge_arrays
 ARCHIVE=ar rs
 
 # Compiler commands.
