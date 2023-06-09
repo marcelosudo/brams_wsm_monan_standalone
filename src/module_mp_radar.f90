@@ -21,9 +21,9 @@
 !+---+-----------------------------------------------------------------+
 
 MODULE module_mp_radar
-!newCode begin
-!$acc routine(rayleigh_soak_wetgraupel)
-!newCode end
+!!!newCode begin
+!!!$acc routine(rayleigh_soak_wetgraupel)
+!!!newCode end
 !      USE module_wrf_error
 
       PUBLIC :: rayleigh_soak_wetgraupel
@@ -273,11 +273,13 @@ CONTAINS
       END FUNCTION m_complex_ice_maetzler
 
 !+---+-----------------------------------------------------------------+
- !$acc routine(rayleigh_soak_wetgraupel) seq
+
       subroutine rayleigh_soak_wetgraupel (x_g, a_geo, b_geo, fmelt,    &
                      meltratio_outside, m_w, m_i, lambda, C_back,       &
                      mixingrule,matrix,inclusion,                       &
                      host,hostmatrix,hostinclusion)
+
+      !$acc routine seq
 
       IMPLICIT NONE
 
@@ -294,11 +296,9 @@ CONTAINS
                          meltratio_outside_grenz, mra
       INTEGER:: error
       DOUBLE PRECISION, PARAMETER:: PIx=3.1415926535897932384626434d0
-!$acc declare create(x_g, a_geo, b_geo, fmelt, lambda,meltratio_outside,C_back)
-!$acc declare create(m_w, m_i,mixingrule, matrix, inclusion, host, hostmatrix, hostinclusion)
-!$acc declare create(m_core, m_air, D_large, D_g, rhog, x_w, xw_a, fm, fmgrenz)
-!$acc declare create(volg, vg, volair, volice, volwater)
-!$acc declare create(meltratio_outside_grenz, mra, error, PIx)
+
+      complex :: teste_var
+
 !     refractive index of air:
       m_air = (1.0d0,0.0d0)
 
@@ -355,9 +355,16 @@ CONTAINS
       
        !..complex index of refraction for the ice-air-water mixture
        !.. of the particle:
-       m_core = get_m_mix_nested (m_air, m_i, m_w, volair, volice,      &
-                         volwater, mixingrule, host, matrix, inclusion, &
-                         hostmatrix, hostinclusion, error)
+       !m_core = get_m_mix_nested (m_air, m_i, m_w, volair, volice,      &
+       !                  volwater, mixingrule, host, matrix, inclusion, &
+       !                  hostmatrix, hostinclusion, error)
+
+!!$       call get_m_mix_nested_sub (m_air, m_i, m_w, volair, volice,      &
+!!$                         volwater, mixingrule, host, matrix, inclusion, &
+!!$                         hostmatrix, hostinclusion, error, m_core)
+
+       call teste(volair, teste_var)
+       
        if (error .ne. 0) then
         C_back = 0.0d0
         return
@@ -375,147 +382,300 @@ CONTAINS
 
 !+---+-----------------------------------------------------------------+
 
-      complex*16 function get_m_mix_nested (m_a, m_i, m_w, volair,      &
-                     volice, volwater, mixingrule, host, matrix,        &
-                     inclusion, hostmatrix, hostinclusion, cumulerror)
+subroutine teste(volair, teste_var)
 
-      IMPLICIT NONE
+!$acc routine
+  
+  implicit none
+  DOUBLE PRECISION, INTENT(in):: volair
+  COMPLEX, INTENT(in):: teste_var
+  
+  
+end subroutine teste
 
-      DOUBLE PRECISION, INTENT(in):: volice, volair, volwater
-      COMPLEX*16, INTENT(in):: m_a, m_i, m_w
-      CHARACTER(len=*), INTENT(in):: mixingrule, host, matrix,          &
-                     inclusion, hostmatrix, hostinclusion
-      INTEGER, INTENT(out):: cumulerror
+      
+subroutine get_m_mix_nested_sub(m_a, m_i, m_w, volair,      &
+     volice, volwater, mixingrule, host, matrix,        &
+     inclusion, hostmatrix, hostinclusion, cumulerror, get_m_mix_nested)
 
-      DOUBLE PRECISION:: vol1, vol2
-      COMPLEX*16:: mtmp
-      INTEGER:: error
+  !$acc routine seq
+  
+  IMPLICIT NONE
 
-      !..Folded: ( (m1 + m2) + m3), where m1,m2,m3 could each be
-      !.. air, ice, or water
+  DOUBLE PRECISION, INTENT(in):: volice, volair, volwater
+  COMPLEX*16, INTENT(in):: m_a, m_i, m_w
+  CHARACTER(len=*), INTENT(in):: mixingrule, host, matrix, inclusion, &
+       hostmatrix, hostinclusion
+  INTEGER, INTENT(out):: cumulerror
+  complex*16, intent(out) :: get_m_mix_nested
+  
+  DOUBLE PRECISION:: vol1, vol2
+  COMPLEX*16:: mtmp
+  INTEGER:: error
+  
+!!$  cumulerror = 0
+!!$  get_m_mix_nested = CMPLX(1.0d0,0.0d0)
+!!$
+!!$  if (host .eq. 'air') then
+!!$
+!!$     if (matrix .eq. 'air') then
+!!$        !write(radar_debug,*) 'GET_M_MIX_NESTED: bad matrix: ', matrix
+!!$        !CALL wrf_debug(150, radar_debug)
+!!$        cumulerror = cumulerror + 1
+!!$     else
+!!$        vol1 = volice / MAX(volice+volwater,1d-10)
+!!$        vol2 = 1.0d0 - vol1
+!!$        mtmp = get_m_mix (m_a, m_i, m_w, 0.0d0, vol1, vol2,             &
+!!$             mixingrule, matrix, inclusion, error)
+!!$        cumulerror = cumulerror + error
+!!$        
+!!$        if (hostmatrix .eq. 'air') then
+!!$           get_m_mix_nested = get_m_mix (m_a, mtmp, 2.0*m_a,              &
+!!$                volair, (1.0d0-volair), 0.0d0, mixingrule,     &
+!!$                hostmatrix, hostinclusion, error)
+!!$           cumulerror = cumulerror + error
+!!$        elseif (hostmatrix .eq. 'icewater') then
+!!$           get_m_mix_nested = get_m_mix (m_a, mtmp, 2.0*m_a,              &
+!!$                volair, (1.0d0-volair), 0.0d0, mixingrule,     &
+!!$                'ice', hostinclusion, error)
+!!$           cumulerror = cumulerror + error
+!!$        else
+!!$           !write(radar_debug,*) 'GET_M_MIX_NESTED: bad hostmatrix: ',        &
+!!$           !     hostmatrix
+!!$           !CALL wrf_debug(150, radar_debug)
+!!$           cumulerror = cumulerror + 1
+!!$        endif
+!!$     endif
+!!$     
+!!$  elseif (host .eq. 'ice') then
+!!$     
+!!$     if (matrix .eq. 'ice') then
+!!$        !write(radar_debug,*) 'GET_M_MIX_NESTED: bad matrix: ', matrix
+!!$        !CALL wrf_debug(150, radar_debug)
+!!$        cumulerror = cumulerror + 1
+!!$     else
+!!$        vol1 = volair / MAX(volair+volwater,1d-10)
+!!$        vol2 = 1.0d0 - vol1
+!!$        mtmp = get_m_mix (m_a, m_i, m_w, vol1, 0.0d0, vol2,             &
+!!$             mixingrule, matrix, inclusion, error)
+!!$        cumulerror = cumulerror + error
+!!$        
+!!$        if (hostmatrix .eq. 'ice') then
+!!$           get_m_mix_nested = get_m_mix (mtmp, m_i, 2.0*m_a,              &
+!!$                (1.0d0-volice), volice, 0.0d0, mixingrule,     &
+!!$                hostmatrix, hostinclusion, error)
+!!$           cumulerror = cumulerror + error
+!!$        elseif (hostmatrix .eq. 'airwater') then
+!!$           get_m_mix_nested = get_m_mix (mtmp, m_i, 2.0*m_a,              &
+!!$                (1.0d0-volice), volice, 0.0d0, mixingrule,     &
+!!$                'air', hostinclusion, error)
+!!$           cumulerror = cumulerror + error          
+!!$        else
+!!$           !write(radar_debug,*) 'GET_M_MIX_NESTED: bad hostmatrix: ',        &
+!!$           !     hostmatrix
+!!$           !CALL wrf_debug(150, radar_debug)
+!!$           cumulerror = cumulerror + 1
+!!$        endif
+!!$     endif
+!!$     
+!!$  elseif (host .eq. 'water') then
+!!$     
+!!$     if (matrix .eq. 'water') then
+!!$        !write(radar_debug,*) 'GET_M_MIX_NESTED: bad matrix: ', matrix
+!!$        !CALL wrf_debug(150, radar_debug)
+!!$        cumulerror = cumulerror + 1
+!!$     else
+!!$        vol1 = volair / MAX(volice+volair,1d-10)
+!!$        vol2 = 1.0d0 - vol1
+!!$        mtmp = get_m_mix (m_a, m_i, m_w, vol1, vol2, 0.0d0,             &
+!!$             mixingrule, matrix, inclusion, error)
+!!$        cumulerror = cumulerror + error
+!!$        
+!!$        if (hostmatrix .eq. 'water') then
+!!$           get_m_mix_nested = get_m_mix (2*m_a, mtmp, m_w,                &
+!!$                0.0d0, (1.0d0-volwater), volwater, mixingrule, &
+!!$                hostmatrix, hostinclusion, error)
+!!$           cumulerror = cumulerror + error
+!!$        elseif (hostmatrix .eq. 'airice') then
+!!$           get_m_mix_nested = get_m_mix (2*m_a, mtmp, m_w,                &
+!!$                0.0d0, (1.0d0-volwater), volwater, mixingrule, &
+!!$                'ice', hostinclusion, error)
+!!$           cumulerror = cumulerror + error          
+!!$        else
+!!$           !write(radar_debug,*) 'GET_M_MIX_NESTED: bad hostmatrix: ',         &
+!!$           !     hostmatrix
+!!$           !CALL wrf_debug(150, radar_debug)
+!!$           cumulerror = cumulerror + 1
+!!$        endif
+!!$     endif
+!!$     
+!!$  elseif (host .eq. 'none') then
+!!$     
+!!$     get_m_mix_nested = get_m_mix (m_a, m_i, m_w,                     &
+!!$          volair, volice, volwater, mixingrule,            &
+!!$          matrix, inclusion, error)
+!!$     cumulerror = cumulerror + error
+!!$     
+!!$  else
+!!$     !write(radar_debug,*) 'GET_M_MIX_NESTED: unknown matrix: ', host
+!!$     !CALL wrf_debug(150, radar_debug)
+!!$     cumulerror = cumulerror + 1
+!!$  endif
+!!$  
+!!$  IF (cumulerror .ne. 0) THEN
+!!$     !write(radar_debug,*) 'GET_M_MIX_NESTED: error encountered'
+!!$     !CALL wrf_debug(150, radar_debug)
+!!$     get_m_mix_nested = CMPLX(1.0d0,0.0d0)    
+!!$  endif
+  
+end subroutine get_m_mix_nested_sub
 
-      cumulerror = 0
-      get_m_mix_nested = CMPLX(1.0d0,0.0d0)
-
-      if (host .eq. 'air') then
-
-       if (matrix .eq. 'air') then
-        write(radar_debug,*) 'GET_M_MIX_NESTED: bad matrix: ', matrix
-        !CALL wrf_debug(150, radar_debug)
-        cumulerror = cumulerror + 1
-       else
-        vol1 = volice / MAX(volice+volwater,1d-10)
-        vol2 = 1.0d0 - vol1
-        mtmp = get_m_mix (m_a, m_i, m_w, 0.0d0, vol1, vol2,             &
-                         mixingrule, matrix, inclusion, error)
-        cumulerror = cumulerror + error
-          
-        if (hostmatrix .eq. 'air') then
-         get_m_mix_nested = get_m_mix (m_a, mtmp, 2.0*m_a,              &
-                         volair, (1.0d0-volair), 0.0d0, mixingrule,     &
-                         hostmatrix, hostinclusion, error)
-         cumulerror = cumulerror + error
-        elseif (hostmatrix .eq. 'icewater') then
-         get_m_mix_nested = get_m_mix (m_a, mtmp, 2.0*m_a,              &
-                         volair, (1.0d0-volair), 0.0d0, mixingrule,     &
-                         'ice', hostinclusion, error)
-         cumulerror = cumulerror + error
-        else
-         write(radar_debug,*) 'GET_M_MIX_NESTED: bad hostmatrix: ',        &
-                           hostmatrix
-         !CALL wrf_debug(150, radar_debug)
-         cumulerror = cumulerror + 1
-        endif
-       endif
-
-      elseif (host .eq. 'ice') then
-
-       if (matrix .eq. 'ice') then
-        write(radar_debug,*) 'GET_M_MIX_NESTED: bad matrix: ', matrix
-        !CALL wrf_debug(150, radar_debug)
-        cumulerror = cumulerror + 1
-       else
-        vol1 = volair / MAX(volair+volwater,1d-10)
-        vol2 = 1.0d0 - vol1
-        mtmp = get_m_mix (m_a, m_i, m_w, vol1, 0.0d0, vol2,             &
-                         mixingrule, matrix, inclusion, error)
-        cumulerror = cumulerror + error
-
-        if (hostmatrix .eq. 'ice') then
-         get_m_mix_nested = get_m_mix (mtmp, m_i, 2.0*m_a,              &
-                         (1.0d0-volice), volice, 0.0d0, mixingrule,     &
-                         hostmatrix, hostinclusion, error)
-         cumulerror = cumulerror + error
-        elseif (hostmatrix .eq. 'airwater') then
-         get_m_mix_nested = get_m_mix (mtmp, m_i, 2.0*m_a,              &
-                         (1.0d0-volice), volice, 0.0d0, mixingrule,     &
-                         'air', hostinclusion, error)
-         cumulerror = cumulerror + error          
-        else
-         write(radar_debug,*) 'GET_M_MIX_NESTED: bad hostmatrix: ',        &
-                           hostmatrix
-         !CALL wrf_debug(150, radar_debug)
-         cumulerror = cumulerror + 1
-        endif
-       endif
-
-      elseif (host .eq. 'water') then
-
-       if (matrix .eq. 'water') then
-        write(radar_debug,*) 'GET_M_MIX_NESTED: bad matrix: ', matrix
-        !CALL wrf_debug(150, radar_debug)
-        cumulerror = cumulerror + 1
-       else
-        vol1 = volair / MAX(volice+volair,1d-10)
-        vol2 = 1.0d0 - vol1
-        mtmp = get_m_mix (m_a, m_i, m_w, vol1, vol2, 0.0d0,             &
-                         mixingrule, matrix, inclusion, error)
-        cumulerror = cumulerror + error
-
-        if (hostmatrix .eq. 'water') then
-         get_m_mix_nested = get_m_mix (2*m_a, mtmp, m_w,                &
-                         0.0d0, (1.0d0-volwater), volwater, mixingrule, &
-                         hostmatrix, hostinclusion, error)
-         cumulerror = cumulerror + error
-        elseif (hostmatrix .eq. 'airice') then
-         get_m_mix_nested = get_m_mix (2*m_a, mtmp, m_w,                &
-                         0.0d0, (1.0d0-volwater), volwater, mixingrule, &
-                         'ice', hostinclusion, error)
-         cumulerror = cumulerror + error          
-        else
-         write(radar_debug,*) 'GET_M_MIX_NESTED: bad hostmatrix: ',         &
-                           hostmatrix
-         !CALL wrf_debug(150, radar_debug)
-         cumulerror = cumulerror + 1
-        endif
-       endif
-
-      elseif (host .eq. 'none') then
-
-       get_m_mix_nested = get_m_mix (m_a, m_i, m_w,                     &
-                       volair, volice, volwater, mixingrule,            &
-                       matrix, inclusion, error)
-       cumulerror = cumulerror + error
-        
-      else
-       write(radar_debug,*) 'GET_M_MIX_NESTED: unknown matrix: ', host
-       !CALL wrf_debug(150, radar_debug)
-       cumulerror = cumulerror + 1
-      endif
-
-      IF (cumulerror .ne. 0) THEN
-       write(radar_debug,*) 'GET_M_MIX_NESTED: error encountered'
-       !CALL wrf_debug(150, radar_debug)
-       get_m_mix_nested = CMPLX(1.0d0,0.0d0)    
-      endif
-
-      end function get_m_mix_nested
+      
+!!$      complex*16 function get_m_mix_nested (m_a, m_i, m_w, volair,      &
+!!$                     volice, volwater, mixingrule, host, matrix,        &
+!!$                     inclusion, hostmatrix, hostinclusion, cumulerror)
+!!$
+!!$      !!!$acc routine
+!!$        
+!!$      IMPLICIT NONE
+!!$
+!!$      DOUBLE PRECISION, INTENT(in):: volice, volair, volwater
+!!$      COMPLEX*16, INTENT(in):: m_a, m_i, m_w
+!!$      CHARACTER(len=*), INTENT(in):: mixingrule, host, matrix,          &
+!!$                     inclusion, hostmatrix, hostinclusion
+!!$      INTEGER, INTENT(out):: cumulerror
+!!$
+!!$      DOUBLE PRECISION:: vol1, vol2
+!!$      COMPLEX*16:: mtmp
+!!$      INTEGER:: error
+!!$
+!!$      !..Folded: ( (m1 + m2) + m3), where m1,m2,m3 could each be
+!!$      !.. air, ice, or water
+!!$
+!!$      cumulerror = 0
+!!$      get_m_mix_nested = CMPLX(1.0d0,0.0d0)
+!!$
+!!$      if (host .eq. 'air') then
+!!$
+!!$       if (matrix .eq. 'air') then
+!!$        write(radar_debug,*) 'GET_M_MIX_NESTED: bad matrix: ', matrix
+!!$        !CALL wrf_debug(150, radar_debug)
+!!$        cumulerror = cumulerror + 1
+!!$       else
+!!$        vol1 = volice / MAX(volice+volwater,1d-10)
+!!$        vol2 = 1.0d0 - vol1
+!!$        mtmp = get_m_mix (m_a, m_i, m_w, 0.0d0, vol1, vol2,             &
+!!$                         mixingrule, matrix, inclusion, error)
+!!$        cumulerror = cumulerror + error
+!!$          
+!!$        if (hostmatrix .eq. 'air') then
+!!$         get_m_mix_nested = get_m_mix (m_a, mtmp, 2.0*m_a,              &
+!!$                         volair, (1.0d0-volair), 0.0d0, mixingrule,     &
+!!$                         hostmatrix, hostinclusion, error)
+!!$         cumulerror = cumulerror + error
+!!$        elseif (hostmatrix .eq. 'icewater') then
+!!$         get_m_mix_nested = get_m_mix (m_a, mtmp, 2.0*m_a,              &
+!!$                         volair, (1.0d0-volair), 0.0d0, mixingrule,     &
+!!$                         'ice', hostinclusion, error)
+!!$         cumulerror = cumulerror + error
+!!$        else
+!!$         write(radar_debug,*) 'GET_M_MIX_NESTED: bad hostmatrix: ',        &
+!!$                           hostmatrix
+!!$         !CALL wrf_debug(150, radar_debug)
+!!$         cumulerror = cumulerror + 1
+!!$        endif
+!!$       endif
+!!$
+!!$      elseif (host .eq. 'ice') then
+!!$
+!!$       if (matrix .eq. 'ice') then
+!!$        write(radar_debug,*) 'GET_M_MIX_NESTED: bad matrix: ', matrix
+!!$        !CALL wrf_debug(150, radar_debug)
+!!$        cumulerror = cumulerror + 1
+!!$       else
+!!$        vol1 = volair / MAX(volair+volwater,1d-10)
+!!$        vol2 = 1.0d0 - vol1
+!!$        mtmp = get_m_mix (m_a, m_i, m_w, vol1, 0.0d0, vol2,             &
+!!$                         mixingrule, matrix, inclusion, error)
+!!$        cumulerror = cumulerror + error
+!!$
+!!$        if (hostmatrix .eq. 'ice') then
+!!$         get_m_mix_nested = get_m_mix (mtmp, m_i, 2.0*m_a,              &
+!!$                         (1.0d0-volice), volice, 0.0d0, mixingrule,     &
+!!$                         hostmatrix, hostinclusion, error)
+!!$         cumulerror = cumulerror + error
+!!$        elseif (hostmatrix .eq. 'airwater') then
+!!$         get_m_mix_nested = get_m_mix (mtmp, m_i, 2.0*m_a,              &
+!!$                         (1.0d0-volice), volice, 0.0d0, mixingrule,     &
+!!$                         'air', hostinclusion, error)
+!!$         cumulerror = cumulerror + error          
+!!$        else
+!!$         write(radar_debug,*) 'GET_M_MIX_NESTED: bad hostmatrix: ',        &
+!!$                           hostmatrix
+!!$         !CALL wrf_debug(150, radar_debug)
+!!$         cumulerror = cumulerror + 1
+!!$        endif
+!!$       endif
+!!$
+!!$      elseif (host .eq. 'water') then
+!!$
+!!$       if (matrix .eq. 'water') then
+!!$        write(radar_debug,*) 'GET_M_MIX_NESTED: bad matrix: ', matrix
+!!$        !CALL wrf_debug(150, radar_debug)
+!!$        cumulerror = cumulerror + 1
+!!$       else
+!!$        vol1 = volair / MAX(volice+volair,1d-10)
+!!$        vol2 = 1.0d0 - vol1
+!!$        mtmp = get_m_mix (m_a, m_i, m_w, vol1, vol2, 0.0d0,             &
+!!$                         mixingrule, matrix, inclusion, error)
+!!$        cumulerror = cumulerror + error
+!!$
+!!$        if (hostmatrix .eq. 'water') then
+!!$         get_m_mix_nested = get_m_mix (2*m_a, mtmp, m_w,                &
+!!$                         0.0d0, (1.0d0-volwater), volwater, mixingrule, &
+!!$                         hostmatrix, hostinclusion, error)
+!!$         cumulerror = cumulerror + error
+!!$        elseif (hostmatrix .eq. 'airice') then
+!!$         get_m_mix_nested = get_m_mix (2*m_a, mtmp, m_w,                &
+!!$                         0.0d0, (1.0d0-volwater), volwater, mixingrule, &
+!!$                         'ice', hostinclusion, error)
+!!$         cumulerror = cumulerror + error          
+!!$        else
+!!$         write(radar_debug,*) 'GET_M_MIX_NESTED: bad hostmatrix: ',         &
+!!$                           hostmatrix
+!!$         !CALL wrf_debug(150, radar_debug)
+!!$         cumulerror = cumulerror + 1
+!!$        endif
+!!$       endif
+!!$
+!!$      elseif (host .eq. 'none') then
+!!$
+!!$       get_m_mix_nested = get_m_mix (m_a, m_i, m_w,                     &
+!!$                       volair, volice, volwater, mixingrule,            &
+!!$                       matrix, inclusion, error)
+!!$       cumulerror = cumulerror + error
+!!$        
+!!$      else
+!!$       write(radar_debug,*) 'GET_M_MIX_NESTED: unknown matrix: ', host
+!!$       !CALL wrf_debug(150, radar_debug)
+!!$       cumulerror = cumulerror + 1
+!!$      endif
+!!$
+!!$      IF (cumulerror .ne. 0) THEN
+!!$       write(radar_debug,*) 'GET_M_MIX_NESTED: error encountered'
+!!$       !CALL wrf_debug(150, radar_debug)
+!!$       get_m_mix_nested = CMPLX(1.0d0,0.0d0)    
+!!$      endif
+!!$
+!!$      end function get_m_mix_nested
 
 !+---+-----------------------------------------------------------------+
 
       COMPLEX*16 FUNCTION get_m_mix (m_a, m_i, m_w, volair, volice,     &
                      volwater, mixingrule, matrix, inclusion, error)
 
+!$acc routine seq
+        
       IMPLICIT NONE
 
       DOUBLE PRECISION, INTENT(in):: volice, volair, volwater
@@ -537,19 +697,19 @@ CONTAINS
         get_m_mix = m_complex_maxwellgarnett(volair, volwater, volice,  &
                            m_a, m_w, m_i, inclusion, error)
        else
-        write(radar_debug,*) 'GET_M_MIX: unknown matrix: ', matrix
+!!$        write(radar_debug,*) 'GET_M_MIX: unknown matrix: ', matrix
         !CALL wrf_debug(150, radar_debug)
         error = 1
        endif
 
       else
-       write(radar_debug,*) 'GET_M_MIX: unknown mixingrule: ', mixingrule
+!!$       write(radar_debug,*) 'GET_M_MIX: unknown mixingrule: ', mixingrule
        !CALL wrf_debug(150, radar_debug)
        error = 2
       endif
 
       if (error .ne. 0) then
-       write(radar_debug,*) 'GET_M_MIX: error encountered'
+!!$       write(radar_debug,*) 'GET_M_MIX: error encountered'
        !CALL wrf_debug(150, radar_debug)
       endif
 
@@ -560,6 +720,8 @@ CONTAINS
       COMPLEX*16 FUNCTION m_complex_maxwellgarnett(vol1, vol2, vol3,    &
                      m1, m2, m3, inclusion, error)
 
+!$acc routine seq
+        
       IMPLICIT NONE
 
       COMPLEX*16 :: m1, m2, m3
@@ -572,8 +734,8 @@ CONTAINS
       error = 0
 
       if (DABS(vol1+vol2+vol3-1.0d0) .gt. 1d-6) then
-       write(radar_debug,*) 'M_COMPLEX_MAXWELLGARNETT: sum of the ',       &
-              'partial volume fractions is not 1...ERROR'
+!!$       write(radar_debug,*) 'M_COMPLEX_MAXWELLGARNETT: sum of the ',       &
+!!$              'partial volume fractions is not 1...ERROR'
        !CALL wrf_debug(150, radar_debug)
        m_complex_maxwellgarnett=CMPLX(-999.99d0,-999.99d0)
        error = 1
@@ -591,8 +753,8 @@ CONTAINS
        beta2 = 2.0d0*m1t/(m2t-m1t) * (m2t/(m2t-m1t)*LOG(m2t/m1t)-1.0d0)
        beta3 = 2.0d0*m1t/(m3t-m1t) * (m3t/(m3t-m1t)*LOG(m3t/m1t)-1.0d0)
       else
-       write(radar_debug,*) 'M_COMPLEX_MAXWELLGARNETT: ',                  &
-                         'unknown inclusion: ', inclusion
+!!$       write(radar_debug,*) 'M_COMPLEX_MAXWELLGARNETT: ',                  &
+!!$                         'unknown inclusion: ', inclusion
        !CALL wrf_debug(150, radar_debug)
        m_complex_maxwellgarnett=DCMPLX(-999.99d0,-999.99d0)
        error = 1
