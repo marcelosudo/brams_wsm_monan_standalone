@@ -1,5 +1,8 @@
 program wsm_test
-
+!$acc routine (wsm5)
+! $acc routine(wsm52D)
+! $acc routine(refl10cm_wsm5)
+! $acc routine(effectRad_wsm5)
    use module_mp_wsm3, only: wsm3init, wsm3
    use module_mp_wsm5, only: wsm5init, wsm5
    use module_mp_wsm6, only: wsm6init, wsm6
@@ -141,7 +144,8 @@ program wsm_test
 
 !- 
    integer :: nvar_out
-   
+	!! $acc routine (wsm3)
+	!!$acc routine (wsm5)
 !- read namelist  
    open(15,file='wsm.inp',status='old',form='formatted')    
     read(15,nml=run)
@@ -303,6 +307,22 @@ program wsm_test
    
    
    !------------------------------ process cloud microphysics -----------------------
+      IF(start_of_simulation) THEN !.or.restart.)   
+         IF(mcphys_type == 30 ) &   
+            CALL wsm3init(rhoair0,rhowater,rhosnow,cliq,cpv,   .false. )
+         IF(mcphys_type ==  5 ) &   
+            CALL wsm5init(rhoair0,rhowater,rhosnow,cliq,cpv,   .false. )
+         IF(mcphys_type ==  6 ) &   
+            CALL wsm6init(rhoair0,rhowater,rhosnow,cliq,cpv, 0,.false. )
+         IF(mcphys_type ==  7 ) &   
+            CALL wsm7init(rhoair0,rhowater,rhosnow,cliq,cpv,   .false. )
+
+         start_of_simulation =.false.
+      ENDIF
+   
+   print*,'ja, jz',ja,jz
+   print*,'ia, iz',ia,iz
+   !$acc parallel loop collapse(2)
    do j = ja,jz
     do i = ia,iz
  
@@ -425,71 +445,72 @@ program wsm_test
 
       ENDDO
 
-      !
-      IF(start_of_simulation) THEN !.or.restart.)   
-         IF(mcphys_type == 30 ) &   
-            CALL wsm3init(rhoair0,rhowater,rhosnow,cliq,cpv,   .false. )
-         IF(mcphys_type ==  5 ) &   
-            CALL wsm5init(rhoair0,rhowater,rhosnow,cliq,cpv,   .false. )
-         IF(mcphys_type ==  6 ) &   
-            CALL wsm6init(rhoair0,rhowater,rhosnow,cliq,cpv, 0,.false. )
-         IF(mcphys_type ==  7 ) &   
-            CALL wsm7init(rhoair0,rhowater,rhosnow,cliq,cpv,   .false. )
+      ! ! TESTE - MOVIDO PARA ANTES DO LOOP
+      ! ! IF(start_of_simulation) THEN !.or.restart.)   
+         ! ! IF(mcphys_type == 30 ) &   
+            ! ! CALL wsm3init(rhoair0,rhowater,rhosnow,cliq,cpv,   .false. )
+         ! ! IF(mcphys_type ==  5 ) &   
+            ! ! CALL wsm5init(rhoair0,rhowater,rhosnow,cliq,cpv,   .false. )
+         ! ! IF(mcphys_type ==  6 ) &   
+            ! ! CALL wsm6init(rhoair0,rhowater,rhosnow,cliq,cpv, 0,.false. )
+         ! ! IF(mcphys_type ==  7 ) &   
+            ! ! CALL wsm7init(rhoair0,rhowater,rhosnow,cliq,cpv,   .false. )
 
-         start_of_simulation =.false.
-      ENDIF
+         ! ! start_of_simulation =.false.
+      ! ! ENDIF
 
-      IF(mcphys_type == 30)                   &   
+! COMENTADO POIS NAO É UTILIZADO
+      ! IF(mcphys_type == 30)                   &   
           
-           CALL wsm3(                         &
-                   TH,                        &! potential temperature    (K)
-                   qv_curr,                   &! QV=qv_curr,     
-                   qc_curr,                   &! QC=qc_curr,     
-                   qr_curr,                   &! QR=qr_curr,     
-                   !
-                   w,                         &! check if used
-                   air_dens,                  &          
-                   pi_phy,                    &! exner function (dimensionless)
-                   P,                         &! pressure(Pa)
-                   dz8w,                      &! deltaz
-                   !
-                   dt,      &                  ! time step              (s)
-                    g,      &
-                   cp,      &
-                   cpv,     &
-                   r_d,     &
-                   r_v,     &
-                   svpt0,   &
-                   ep_1,    &
-                   ep_2,    &
-                   epsilon, &
-                   xls,     &
-                   xlv,     &
-                   xlf,     &
-                   rhoair0, &
-                   rhowater,&  
-                   cliq,    &
-                   cice,    &
-                   psat,    & 
-                   !
-                   RAINNC,                    &
-                   RAINNCV,                   &
-                   SNOWNC,                    &
-                   SNOWNCV,                   &
-                   SR,                        &
-                   !
-                   ! 
-                   has_reqc,                  & 
-                   has_reqi,                  &  
-                   has_reqs,                  & 
-                   !
-                   re_cloud,                  & 
-                   re_ice,                    &
-                   re_snow,                   &
-                   IDS,IDE, JDS,JDE, KDS,KDE, &
-                   IMS,IME, JMS,JME, KMS,KME, &
-                   ITS,ITE, JTS,JTE, KTS,KTE  &
-                   )
+           ! CALL wsm3(                         &
+                   ! TH,                        &! potential temperature    (K)
+                   ! qv_curr,                   &! QV=qv_curr,     
+                   ! qc_curr,                   &! QC=qc_curr,     
+                   ! qr_curr,                   &! QR=qr_curr,     
+                   
+                   ! w,                         &! check if used
+                   ! air_dens,                  &          
+                   ! pi_phy,                    &! exner function (dimensionless)
+                   ! P,                         &! pressure(Pa)
+                   ! dz8w,                      &! deltaz
+                   
+                   ! dt,      &                  ! time step              (s)
+                    ! g,      &
+                   ! cp,      &
+                   ! cpv,     &
+                   ! r_d,     &
+                   ! r_v,     &
+                   ! svpt0,   &
+                   ! ep_1,    &
+                   ! ep_2,    &
+                   ! epsilon, &
+                   ! xls,     &
+                   ! xlv,     &
+                   ! xlf,     &
+                   ! rhoair0, &
+                   ! rhowater,&  
+                   ! cliq,    &
+                   ! cice,    &
+                   ! psat,    & 
+                   
+                   ! RAINNC,                    &
+                   ! RAINNCV,                   &
+                   ! SNOWNC,                    &
+                   ! SNOWNCV,                   &
+                   ! SR,                        &
+                   
+                   
+                   ! has_reqc,                  & 
+                   ! has_reqi,                  &  
+                   ! has_reqs,                  & 
+                   
+                   ! re_cloud,                  & 
+                   ! re_ice,                    &
+                   ! re_snow,                   &
+                   ! IDS,IDE, JDS,JDE, KDS,KDE, &
+                   ! IMS,IME, JMS,JME, KMS,KME, &
+                   ! ITS,ITE, JTS,JTE, KTS,KTE  &
+                   ! )
 
            IF(mcphys_type == 5)                    &   
                   
@@ -650,7 +671,7 @@ program wsm_test
            pcprh(i,j) = pcprh_1d
          endif
    enddo; enddo ! loop i,j
-   
+   !$acc end parallel loop
    !=======================================================================
     inquire (iolength=int_byte_size) real_byte_size  ! inquire by output list
     rec_size = m2*m3*int_byte_size    

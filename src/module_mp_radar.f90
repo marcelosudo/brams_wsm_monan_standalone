@@ -21,7 +21,9 @@
 !+---+-----------------------------------------------------------------+
 
 MODULE module_mp_radar
-
+!newCode begin
+!$acc routine(rayleigh_soak_wetgraupel)
+!newCode end
 !      USE module_wrf_error
 
       PUBLIC :: rayleigh_soak_wetgraupel
@@ -62,6 +64,16 @@ MODULE module_mp_radar
       DOUBLE PRECISION, PARAMETER:: melt_outside_g = 0.9d0
 
       CHARACTER*256:: radar_debug
+
+!newCode begin
+!$acc declare create(xxDx,xxDs,xdts,xxDg,xdtg,K_w,PI5,lamda4,m_w_0, m_i_0)
+!$acc declare create(simpson,xcre, xcse, xcge, xcrg, xcsg, xcgg)
+!$acc declare create(xam_r, xbm_r, xmu_r, xobmr, xam_s, xbm_s, xmu_s, xoams, xobms, xocms)
+!$acc declare create(xam_g, xbm_g, xmu_g, xoamg, xobmg, xocmg, xorg2, xosg2, xogg2)
+!$acc declare create(mixingrulestring_s, matrixstring_s, inclusionstring_s, hoststring_s)
+!$acc declare create(hostmatrixstring_s, hostinclusionstring_s, mixingrulestring_g, matrixstring_g)
+!$acc declare create(inclusionstring_g, hoststring_g, hostmatrixstring_g, hostinclusionstring_g)
+!newCode end
 
 CONTAINS
 
@@ -261,7 +273,7 @@ CONTAINS
       END FUNCTION m_complex_ice_maetzler
 
 !+---+-----------------------------------------------------------------+
-
+ !$acc routine(rayleigh_soak_wetgraupel) seq
       subroutine rayleigh_soak_wetgraupel (x_g, a_geo, b_geo, fmelt,    &
                      meltratio_outside, m_w, m_i, lambda, C_back,       &
                      mixingrule,matrix,inclusion,                       &
@@ -282,7 +294,11 @@ CONTAINS
                          meltratio_outside_grenz, mra
       INTEGER:: error
       DOUBLE PRECISION, PARAMETER:: PIx=3.1415926535897932384626434d0
-
+!$acc declare create(x_g, a_geo, b_geo, fmelt, lambda,meltratio_outside,C_back)
+!$acc declare create(m_w, m_i,mixingrule, matrix, inclusion, host, hostmatrix, hostinclusion)
+!$acc declare create(m_core, m_air, D_large, D_g, rhog, x_w, xw_a, fm, fmgrenz)
+!$acc declare create(volg, vg, volair, volice, volwater)
+!$acc declare create(meltratio_outside_grenz, mra, error, PIx)
 !     refractive index of air:
       m_air = (1.0d0,0.0d0)
 

@@ -11,7 +11,18 @@
 
 !Including inline expansion statistical function 
 MODULE module_mp_wsm5
-!
+!$acc routine(wsm52D)
+!$acc routine(refl10cm_wsm5)
+!$acc routine(effectRad_wsm5)
+!$acc routine(wsm5)
+!$acc routine(slope_wsm5)
+!$acc routine(nislfv_rain_plm)
+!$acc routine(slope_rain)
+!$acc routine(slope_snow)
+!$acc routine(vsrec)
+!$acc routine(vssqrt)
+!!$acc routine(rayleigh_soak_wetgraupel)
+
    USE module_mp_radar
    !-srf
    ! USE module_model_constants, only : RE_QC_BG, RE_QI_BG, RE_QS_BG
@@ -54,7 +65,21 @@ MODULE module_mp_wsm5
              rsloperbmax,rslopesbmax,rslopegbmax,     &
              rsloper2max,rslopes2max,rslopeg2max,     &
              rsloper3max,rslopes3max,rslopeg3max
-!
+
+!newCode begin
+!$acc declare create(qc0, qck1, pidnc)
+!$acc declare create(bvtr1,bvtr2,bvtr3,bvtr4,g1pbr)
+!$acc declare create(g3pbr,g4pbr,g5pbro2,pvtr,eacrr,pacrr)
+!$acc declare create(precr1,precr2,xmmax,roqimax,bvts1)
+!$acc declare create(bvts2,bvts3,bvts4,g1pbs,g3pbs,g4pbs)
+!$acc declare create(g5pbso2,pvts,pacrs,precs1,precs2,pidn0r)
+!$acc declare create(pidn0s,xlv1,pacrc,pi)
+!$acc declare create(rslopermax,rslopesmax,rslopegmax)
+!$acc declare create(rsloperbmax,rslopesbmax,rslopegbmax)
+!$acc declare create(rsloper2max,rslopes2max,rslopeg2max)
+!$acc declare create(rsloper3max,rslopes3max,rslopeg3max)
+!newCode end
+
 ! Specifies code-inlining of fpvs function in WSM52D below. JM 20040507
 !
 CONTAINS
@@ -162,6 +187,7 @@ CONTAINS
 !+---+-----------------------------------------------------------------+
 
 !#ifndef XEON_OPTIMIZED_WSM5
+!print *,"ifndef XEON_OPTIMIZED_WSM5 OK"
       DO j=jts,jte
          DO k=kts,kte
          DO i=its,ite
@@ -202,7 +228,7 @@ CONTAINS
 !+---+-----------------------------------------------------------------+
          IF ( PRESENT (diagflag) ) THEN
          if (diagflag .and. do_radar_ref == 1) then
-!       WRITE(emess,*)'calling refl10cm_wsm5 ',its, jts
+      ! WRITE(emess,*)'calling refl10cm_wsm5 ',its, jts
 !       CALL wrf_debug ( 0, emess )
             DO I=its,ite
                DO K=kts,kte
@@ -212,6 +238,7 @@ CONTAINS
                   qr1d(k)=qr(i,k,j)
                   qs1d(k)=qs(i,k,j)
                ENDDO
+			   ! print *,"call refl10cm_wsm5 OK"
                call refl10cm_wsm5 (qv1d, qr1d, qs1d,                    &
                        t1d, p1d, dBZ, kts, kte, i, j)
                do k = kts, kte
@@ -1673,6 +1700,9 @@ CONTAINS
 !+---+-----------------------------------------------------------------+
       subroutine refl10cm_wsm5 (qv1d, qr1d, qs1d,                       &
                        t1d, p1d, dBZ, kts, kte, ii, jj)
+      !newCode begin
+      !$acc routine(rayleigh_soak_wetgraupel)
+      !newCode end
 
       IMPLICIT NONE
 

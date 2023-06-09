@@ -10,6 +10,9 @@
 ! #endif
 
 MODULE module_mp_wsm3
+!!$acc routine(wsm3)
+!!$acc routine(effectrad_wsm3)
+!!$acc routine(wsm32d)
 !
    !-srf
    ! USE module_model_constants, only : RE_QC_BG, RE_QI_BG, RE_QS_BG
