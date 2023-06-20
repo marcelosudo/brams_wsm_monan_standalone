@@ -21,7 +21,6 @@ MODULE module_mp_wsm5
 !$acc routine(slope_snow)
 !$acc routine(vsrec)
 !$acc routine(vssqrt)
-!!$acc routine(rayleigh_soak_wetgraupel)
 
    USE module_mp_radar
    !-srf

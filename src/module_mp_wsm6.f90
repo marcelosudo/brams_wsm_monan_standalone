@@ -2549,11 +2549,11 @@ CONTAINS
            lams = 1./ilams(k)
            do n = 1, nrbins
               x = xam_s * xxDs(n)**xbm_s
-              call rayleigh_soak_wetgraupel (x,DBLE(xocms),DBLE(xobms), &
-                    fmelt_s, melt_outside_s, m_w_0, m_i_0, lamda_radar, &
-                    CBACK, mixingrulestring_s, matrixstring_s,          &
-                    inclusionstring_s, hoststring_s,                    &
-                    hostmatrixstring_s, hostinclusionstring_s)
+!!$              call rayleigh_soak_wetgraupel (x,DBLE(xocms),DBLE(xobms), &
+!!$                    fmelt_s, melt_outside_s, m_w_0, m_i_0, lamda_radar, &
+!!$                    CBACK, mixingrulestring_s, matrixstring_s,          &
+!!$                    inclusionstring_s, hoststring_s,                    &
+!!$                    hostmatrixstring_s, hostinclusionstring_s)
               f_d = N0_s(k)*xxDs(n)**xmu_s * DEXP(-lams*xxDs(n))
               eta = eta + f_d * CBACK * simpson(n) * xdts(n)
            enddo
@@ -2569,11 +2569,11 @@ CONTAINS
            lamg = 1./ilamg(k)
            do n = 1, nrbins
               x = xam_g * xxDg(n)**xbm_g
-              call rayleigh_soak_wetgraupel (x,DBLE(xocmg),DBLE(xobmg), &
-                    fmelt_g, melt_outside_g, m_w_0, m_i_0, lamda_radar, &
-                    CBACK, mixingrulestring_g, matrixstring_g,          &
-                    inclusionstring_g, hoststring_g,                    &
-                    hostmatrixstring_g, hostinclusionstring_g)
+!!$              call rayleigh_soak_wetgraupel (x,DBLE(xocmg),DBLE(xobmg), &
+!!$                    fmelt_g, melt_outside_g, m_w_0, m_i_0, lamda_radar, &
+!!$                    CBACK, mixingrulestring_g, matrixstring_g,          &
+!!$                    inclusionstring_g, hoststring_g,                    &
+!!$                    hostmatrixstring_g, hostinclusionstring_g)
               f_d = N0_g(k)*xxDg(n)**xmu_g * DEXP(-lamg*xxDg(n))
               eta = eta + f_d * CBACK * simpson(n) * xdtg(n)
            enddo
