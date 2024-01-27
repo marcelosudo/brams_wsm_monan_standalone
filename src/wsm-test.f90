@@ -377,8 +377,8 @@ program wsm_test
   !$acc qi_curr, qs_curr, qg_curr, qh_curr, pi_phy, P, dz8w, &
   !$acc dt, SR, refl_10cm, tempk, til, rliq, rice, qhydm, tairstr, TH, air_dens, &
   !$acc RAINNC, RAINNCV, SNOWNC, SNOWNCV, &
-  !$acc re_cloud, re_ice, re_snow) !&
-  !!!$acc collapse(2)
+  !$acc re_cloud, re_ice, re_snow) &
+  !$acc collapse(2)
   do j = ja,jz
      do i = ia,iz
 
