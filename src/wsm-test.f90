@@ -377,8 +377,8 @@ program wsm_test
   !$acc qi_curr, qs_curr, qg_curr, qh_curr, pi_phy, P, dz8w, &
   !$acc dt, SR, refl_10cm, tempk, til, rliq, rice, qhydm, tairstr, TH, air_dens, &
   !$acc RAINNC, RAINNCV, SNOWNC, SNOWNCV, &
-  !$acc re_cloud, re_ice, re_snow) &
-  !$acc collapse(2)
+  !$acc re_cloud, re_ice, re_snow) !&
+  !!!$acc collapse(2)
   do j = ja,jz
      do i = ia,iz
 
@@ -512,60 +512,60 @@ program wsm_test
         ENDDO !PAREI 26/10
 
       !   ! ** WSM5 main routine **
-        ! IF(mcphys_type == 5)                    &   
+        IF(mcphys_type == 5)                    &   
              
-             ! CALL wsm5(                         &
-             ! TH,                        &! potential temperature    (K)
-             ! qv_curr,                   &! QV=qv_curr,     
-             ! qc_curr,                   &! QC=qc_curr,     
-             ! qr_curr,                   &! QR=qr_curr,     
-             ! qi_curr,                   &! QI=qi_curr,     
-             ! qs_curr,                   &! QS=qs_curr,     
+             CALL wsm5(                         &
+             TH,                        &! potential temperature    (K)
+             qv_curr,                   &! QV=qv_curr,     
+             qc_curr,                   &! QC=qc_curr,     
+             qr_curr,                   &! QR=qr_curr,     
+             qi_curr,                   &! QI=qi_curr,     
+             qs_curr,                   &! QS=qs_curr,     
                                 
-             ! air_dens,                  &          
-             ! pi_phy,                    &! exner function (dimensionless)
-             ! P,                         &! pressure(Pa)
-             ! dz8w,                      &! deltaz
+             air_dens,                  &          
+             pi_phy,                    &! exner function (dimensionless)
+             P,                         &! pressure(Pa)
+             dz8w,                      &! deltaz
                                 
-             ! dt,      &                  ! time step              (s)
-             ! g,       &
-             ! cp,      &
-             ! cpv,     &		! COMENTAR - marcar o q é privado
-             ! r_d,     &
-             ! r_v,     &     
-             ! svpt0,   &
-             ! ep_1,    &
-             ! ep_2,    &
-             ! epsilon, &
-             ! xls,     &
-             ! xlv,     &
-             ! xlf,     &
-             ! rhoair0, &
-             ! rhowater,&  
-             ! cliq,    &
-             ! cice,    &
-             ! psat,    &     
-             ! RAINNC,                    &
-             ! RAINNCV,                   &
-             ! SNOWNC,                    &
-             ! SNOWNCV,                   &
-             ! SR,                        &
+             dt,      &                  ! time step              (s)
+             g,       &
+             cp,      &
+             cpv,     &		! COMENTAR - marcar o q é privado
+             r_d,     &
+             r_v,     &     
+             svpt0,   &
+             ep_1,    &
+             ep_2,    &
+             epsilon, &
+             xls,     &
+             xlv,     &
+             xlf,     &
+             rhoair0, &
+             rhowater,&  
+             cliq,    &
+             cice,    &
+             psat,    &     
+             RAINNC,                    &
+             RAINNCV,                   &
+             SNOWNC,                    &
+             SNOWNCV,                   &
+             SR,                        &
                                 
-             ! refl_10cm,                 &
-             ! diagflag,                  &
-             ! do_radar_ref,              &
+             refl_10cm,                 &
+             diagflag,                  &
+             do_radar_ref,              &
                                 
-             ! has_reqc,                  & 
-             ! has_reqi,                  &  
-             ! has_reqs,                  & 
+             has_reqc,                  & 
+             has_reqi,                  &  
+             has_reqs,                  & 
                                 
-             ! re_cloud,                  & 
-             ! re_ice,                    &
-             ! re_snow,                   &
-             ! IDS,IDE, JDS,JDE, KDS,KDE, &
-             ! IMS,IME, JMS,JME, KMS,KME, &
-             ! ITS,ITE, JTS,JTE, KTS,KTE  &
-             ! )
+             re_cloud,                  & 
+             re_ice,                    &
+             re_snow,                   &
+             IDS,IDE, JDS,JDE, KDS,KDE, &
+             IMS,IME, JMS,JME, KMS,KME, &
+             ITS,ITE, JTS,JTE, KTS,KTE  &
+             )
 
       !   ! ** Third loop over a colunm K, returning values **
       !   !- updated variables after microphysics processes (from WSM to BRAMS)
