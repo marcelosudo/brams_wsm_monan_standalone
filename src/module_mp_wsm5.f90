@@ -256,8 +256,8 @@ CONTAINS
                   ! qs1d(k)=qs(i,k,j)
                ! ENDDO
 			   ! print *,"call refl10cm_wsm5 OK"
-               ! call refl10cm_wsm5_x (q(1,kts:kte,j), qr(1,kts:kte,j), qs(1,kts:kte,j),  &
-                       ! th(1,kts:kte,j), pii(1,kts:kte,j), p(1,kts:kte,j), dBZ, kts, kte, i, j)
+               call refl10cm_wsm5_x (q(1,kts:kte,j), qr(1,kts:kte,j), qs(1,kts:kte,j),  &
+                       th(1,kts:kte,j), pii(1,kts:kte,j), p(1,kts:kte,j), dBZ, kts, kte, i, j)
 			  ! call refl10cm_wsm5 (qv1d, qr1d, qs1d,                    &
                       ! t1d, p1d, dBZ, kts, kte, i, j)
                do k = kts, kte
@@ -283,9 +283,9 @@ CONTAINS
                ! qi1d(k) = qi(i,k,j)
                ! qs1d(k) = qs(i,k,j)
              enddo
-             ! call effectRad_wsm5_x(th(1,kts:kte,j), pii(1,kts:kte,j), qc(1,kts:kte,j), qi(1,kts:kte,j), qs(1,kts:kte,j), den(1,kts:kte,j),                 &
-                                 ! qmin, t0c, re_qc, re_qi, re_qs,               &
-                                 ! kts, kte, i, j)
+             call effectRad_wsm5_x(th(1,kts:kte,j), pii(1,kts:kte,j), qc(1,kts:kte,j), qi(1,kts:kte,j), qs(1,kts:kte,j), den(1,kts:kte,j),                 &
+                                 qmin, t0c, re_qc, re_qi, re_qs,               &
+                                 kts, kte, i, j)
 								 
 		     ! call effectRad_wsm5(t1d, qc1d, qi1d, qs1d, den1d,                 &
                                 ! qmin, t0c, re_qc, re_qi, re_qs,               &
