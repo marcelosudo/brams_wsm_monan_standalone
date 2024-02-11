@@ -211,7 +211,7 @@ program wsm_test
 
   read(l_unit) ids,ide, jds,jde, kds,kde 
   read(l_unit) ims,ime, jms,jme, kms,kme
-  print *, "DEBUG-ALF: ims, ime, jms, jme=", ims, ime, jms, jme
+  print *, "DEBUG-ALF: ims, ime, jms, jme, kms,kme=", ims, ime, jms, jme, kms,kme
   read(l_unit) its,ite, jts,jte, kts,kte 
 
   if(first_read) then
@@ -513,21 +513,18 @@ program wsm_test
 
       !   ! ** WSM5 main routine **
         IF(mcphys_type == 5)                    &   
-             
              CALL wsm5(                         &
-             TH,                        &! potential temperature    (K)
-             qv_curr,                   &! QV=qv_curr,     
-             qc_curr,                   &! QC=qc_curr,     
-             qr_curr,                   &! QR=qr_curr,     
-             qi_curr,                   &! QI=qi_curr,     
-             qs_curr,                   &! QS=qs_curr,     
-                                
-             air_dens,                  &          
-             pi_phy,                    &! exner function (dimensionless)
-             P,                         &! pressure(Pa)
-             dz8w,                      &! deltaz
-                                
-             dt,      &                  ! time step              (s)
+             TH,                        &! potential temperature(K) (private)
+             qv_curr,                   &! QV=qv_curr, (private)    
+             qc_curr,                   &! QC=qc_curr, (private)
+             qr_curr,                   &! QR=qr_curr, (private) 
+             qi_curr,                   &! QI=qi_curr, (private)    
+             qs_curr,                   &! QS=qs_curr, (private)  
+             air_dens,                  &! (private)   
+             pi_phy,                    &! exner function (dimensionless) (private)
+             P,                         &! pressure(Pa) (private)
+             dz8w,                      &! deltaz (private)
+             dt,      &                  ! time step (s) (private)
              g,       &
              cp,      &
              cpv,     &		! COMENTAR - marcar o q é privado
@@ -545,23 +542,20 @@ program wsm_test
              cliq,    &
              cice,    &
              psat,    &     
-             RAINNC,                    &
-             RAINNCV,                   &
-             SNOWNC,                    &
-             SNOWNCV,                   &
-             SR,                        &
-                                
-             refl_10cm,                 &
+             RAINNC,                    & !(private)
+             RAINNCV,                   & !(private)
+             SNOWNC,                    & !(private)
+             SNOWNCV,                   & !(private)
+             SR,                        & !(private)
+             refl_10cm,                 & !(private)
              diagflag,                  &
              do_radar_ref,              &
-                                
              has_reqc,                  & 
              has_reqi,                  &  
              has_reqs,                  & 
-                                
-             re_cloud,                  & 
-             re_ice,                    &
-             re_snow,                   &
+             re_cloud,                  & !(private)
+             re_ice,                    & !(private)
+             re_snow,                   & !(private)
              IDS,IDE, JDS,JDE, KDS,KDE, &
              IMS,IME, JMS,JME, KMS,KME, &
              ITS,ITE, JTS,JTE, KTS,KTE  &
