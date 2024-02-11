@@ -117,14 +117,6 @@ CONTAINS
   INTEGER,      INTENT(IN   )    ::   ids,ide, jds,jde, kds,kde , &
                                       ims,ime, jms,jme, kms,kme , &
                                       its,ite, jts,jte, kts,kte
-  REAL, DIMENSION( ims:ime , kms:kme , jms:jme ),                 &
-        INTENT(INOUT) ::                                          &
-                                                             th,  &
-                                                              q,  &
-                                                              qc, &
-                                                              qi, &
-                                                              qr, &
-                                                              qs
   ! REAL, DIMENSION( ims:ime , kms:kme , jms:jme ),                 &
         ! INTENT(INOUT) ::                                          &
                                                              ! th,  &
@@ -133,10 +125,18 @@ CONTAINS
                                                               ! qi, &
                                                               ! qr, &
                                                               ! qs
+  REAL, DIMENSION(kms:kme),                 &
+        INTENT(INOUT) ::                                          &
+                                                             th, pii,  &
+                                                              q,  &
+                                                              qc, &
+                                                              qi, &
+                                                              qr, &
+                                                              qs
   REAL, DIMENSION( ims:ime , kms:kme , jms:jme ),                 &
         INTENT(IN   ) ::                                          &
                                                              den, &
-                                                             pii, &
+                                                             ! pii, &
                                                                p, &
                                                             delz
   REAL, INTENT(IN   ) ::                                    delt, &
@@ -223,9 +223,9 @@ CONTAINS
           ! troubles, so we explicitly change the call.
 		  ! th(1,kts:kte,j), pii(1,kts:kte,j)
          CALL wsm52D(&!t, q(ims,kms,j), qci, qrs &
-					th(1,kts:kte,j), pii(1,kts:kte,j), q(ims,kms,j),& !(private - todas)
-					qc(1,kts:kte,j),qi(1,kts:kte,j),& !(private - todas)
-					qr(1,kts:kte,j), qs(1,kts:kte,j) & !(private - todas)
+					th(kts:kte), pii(kts:kte), q(kms),& !(private - todas)
+					qc(kts:kte),qi(kts:kte),& !(private - todas)
+					qr(kts:kte), qs(kts:kte) & !(private - todas)
                     ,den(ims,kms,j)                                & !(private - todas)
                     ,p(ims,kms,j), delz(ims,kms,j),                & !(private - todas)
                     delt,g, cpd, cpv, rd, rv, t0c                  & !(private - somente delt)
@@ -318,9 +318,13 @@ CONTAINS
                                       ims,ime, jms,jme, kms,kme , &
                                       its,ite, jts,jte, kts,kte,  &
                                       lat
-  REAL, DIMENSION( its:ite , kts:kte ),                           &
+  ! REAL, DIMENSION( its:ite , kts:kte ),                           &
+        ! INTENT(INOUT) ::                                          &
+                                                              ! th, 
+															  ! pii
+  REAL, DIMENSION(kts:kte ),                           &
         INTENT(INOUT) ::                                          &
-                                                              th, pii
+                                                              th, pii, qc, qi, qr, qs
 		! REAL, DIMENSION( its:ite , kts:kte ),                           &
         ! INTENT(INOUT) ::                                          &
                                                               ! t
@@ -328,11 +332,11 @@ CONTAINS
         ! INTENT(INOUT) ::                                          &
                                                              ! qci, &
                                                               ! qrs
-  REAL, DIMENSION( its:ite , kts:kte),                        &
-        INTENT(INOUT) ::                                          &
-															  qc, qi, &
-															  qr, qs
-  REAL, DIMENSION( ims:ime , kms:kme ),                           &
+  ! REAL, DIMENSION( its:ite , kts:kte),                        &
+        ! INTENT(INOUT) ::                                          &
+															  ! qc, qi, &
+															  ! qr, qs
+  REAL, DIMENSION(kms:kme ),                           &
         INTENT(INOUT) ::                                          &
                                                                q
   REAL, DIMENSION( ims:ime , kms:kme ),                           &

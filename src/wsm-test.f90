@@ -155,15 +155,16 @@ program wsm_test
       !  ,rsp_1d  &
       !  ,rel_1d  &
       !  ,rei_1d             
-
+  real, allocatable, dimension(:) :: &
+       th, pi_phy, qv_curr, qc_curr, qi_curr, qr_curr, qs_curr
   real, allocatable, dimension(:,:,:) :: &
-       th       &
-       ,dz8w     &
-       ,pi_phy   &
+       ! th       &
+       dz8w     &
+       ! ,pi_phy   &
        ,p        &
        ,air_dens &
        ! ,w 		  &
-       ,qv_curr,qc_curr,qr_curr,qi_curr,qs_curr,qg_curr &
+       ,qg_curr &
        ,qh_curr,re_cloud, re_ice, re_snow, orho	      &
        ,hgt, refl_10cm , rainprod,evapprod
 
@@ -229,8 +230,6 @@ program wsm_test
      allocate(pcprs (m2,m3))    ;pcprs  = 0.0
      allocate(glon  (m2,m3))    ;glon   = 0.0
      allocate(glat  (m2,m3))    ;glat   = 0.0
-
-
      allocate(thp  (m1,m2,m3))   ;thp   = 0.0 
      allocate(theta(m1,m2,m3))   ;theta = 0.0
      allocate(pp   (m1,m2,m3))   ;pp    = 0.0 
@@ -249,17 +248,17 @@ program wsm_test
      ! allocate(rel  (m1,m2,m3))   ;rel   = 0.0 
 
      !---------  Local vars
-     allocate(th        ( ims:ime, kms:kme, jms:jme )) ;th       = 0.0 
+     allocate(th        (kms:kme)) ;th       = 0.0 
      allocate(dz8w      ( ims:ime, kms:kme, jms:jme )) ;dz8w     = 0.0 
-     allocate(pi_phy    ( ims:ime, kms:kme, jms:jme )) ;pi_phy   = 0.0 
+     allocate(pi_phy    (kms:kme)) ;pi_phy   = 0.0 
      allocate(p         ( ims:ime, kms:kme, jms:jme )) ;p        = 0.0 
      allocate(air_dens  ( ims:ime, kms:kme, jms:jme )) ;air_dens = 0.0 
      ! allocate(w         ( ims:ime, kms:kme, jms:jme )) ;w        = 0.0 
-     allocate(qv_curr   ( ims:ime, kms:kme, jms:jme )) ;qv_curr  = 0.0 
-     allocate(qc_curr   ( ims:ime, kms:kme, jms:jme )) ;qc_curr  = 0.0 
-     allocate(qr_curr   ( ims:ime, kms:kme, jms:jme )) ;qr_curr  = 0.0
-     allocate(qi_curr   ( ims:ime, kms:kme, jms:jme )) ;qi_curr  = 0.0
-     allocate(qs_curr   ( ims:ime, kms:kme, jms:jme )) ;qs_curr  = 0.0
+     allocate(qv_curr   (kms:kme)) ;qv_curr  = 0.0 
+     allocate(qc_curr   (kms:kme)) ;qc_curr  = 0.0 
+     allocate(qr_curr   (kms:kme)) ;qr_curr  = 0.0
+     allocate(qi_curr   (kms:kme)) ;qi_curr  = 0.0
+     allocate(qs_curr   (kms:kme)) ;qs_curr  = 0.0
      allocate(qg_curr   ( ims:ime, kms:kme, jms:jme )) ;qg_curr  = 0.0
      allocate(qh_curr   ( ims:ime, kms:kme, jms:jme )) ;qh_curr  = 0.0
      allocate(re_cloud  ( ims:ime, kms:kme, jms:jme )) ;re_cloud = 0.0
@@ -467,17 +466,17 @@ program wsm_test
         do k = 1,kme-1
 
            kr = k + 1
-           qv_curr (1,k,1)= max(1.e-12,rtp(kr,i,j) - &    ! QV
+           qv_curr (k)= max(1.e-12,rtp(kr,i,j) - &    ! QV
                 (rcp(kr,i,j)+rrp(kr,i,j)+rpp(kr,i,j)+rsp(kr,i,j)+rgp(kr,i,j)+rhp(kr,i,j)))   
-           qc_curr (1,k,1)= max(0.0,rcp(kr,i,j))       ! QC     
-           qr_curr (1,k,1)= max(0.0,rrp(kr,i,j))       ! QR   
-           qi_curr (1,k,1)= max(0.0,rpp(kr,i,j))       ! QI   
-           qs_curr (1,k,1)= max(0.0,rsp(kr,i,j))       ! QS   
+           qc_curr (k)= max(0.0,rcp(kr,i,j))       ! QC     
+           qr_curr (k)= max(0.0,rrp(kr,i,j))       ! QR   
+           qi_curr (k)= max(0.0,rpp(kr,i,j))       ! QI   
+           qs_curr (k)= max(0.0,rsp(kr,i,j))       ! QS   
            qg_curr (1,k,1)= max(0.0,rgp(kr,i,j))       ! QG
 
            qh_curr (1,k,1)= max(0.0,rhp(kr,i,j))       ! QH   
 
-           pi_phy  (1,k,1)= (pp(kr,i,j)+pi0(kr,i,j))*cpi ! Exner function/cp (dimensionless)
+           pi_phy  (k)= (pp(kr,i,j)+pi0(kr,i,j))*cpi ! Exner function/cp (dimensionless)
 
            P   (1,k,1)= ( (pp(kr,i,j)+pi0(kr,i,j))*cpi )** cpor * p00      ! pressure(Pa)
            ! W   (1,k,1)= wp(kr,i,j)    ! vertical velocity (m/s) ! must be at center or face? ASK !21/11/2023
@@ -493,8 +492,8 @@ program wsm_test
            tempK = theta(kr,i,j)* (pp(kr,i,j)+pi0(kr,i,j))*cpi 
            til   = thp(kr,i,j)* (pp(kr,i,j)+pi0(kr,i,j))*cpi 
 
-           rliq  =  qc_curr(1,k,1) + qr_curr(1,k,1)                
-           rice  =  qi_curr(1,k,1) + qs_curr(1,k,1) + qg_curr(1,k,1) + qh_curr(1,k,1)
+           rliq  =  qc_curr(k) + qr_curr(k)                
+           rice  =  qi_curr(k) + qs_curr(k) + qg_curr(1,k,1) + qh_curr(1,k,1)
            qhydm =  alvl * rliq + alvi * rice
 
            if (tempK > 253.) then
@@ -503,10 +502,10 @@ program wsm_test
               tairstr = til * (1. + qhydm * cp253i)
            endif
            !- updated potential temperature TH in Kelvin (adv+dif+rad+conv+)
-           TH (1,k,1) = tairstr / pi_phy(1,k,1)
+           TH (k) = tairstr / pi_phy(k)
 
            !- air density
-           air_dens(1,k,1) = P(1,k,1)/(287.04*tempK*(1.+0.608*qv_curr(1,k,1)))
+           air_dens(1,k,1) = P(1,k,1)/(287.04*tempK*(1.+0.608*qv_curr(k)))
            !air_dens(1,k,1)= dn0(kr) 
 
         ENDDO !PAREI 26/10
@@ -565,31 +564,31 @@ program wsm_test
       !   !- updated variables after microphysics processes (from WSM to BRAMS)
         DO k=1,kme-1
            kr=k+1
-           rtp(kr,i,j)= qv_curr(1,k,1) + &
-                qc_curr(1,k,1) + &     
-                qr_curr(1,k,1) + &    
-                qi_curr(1,k,1) + &    
-                qs_curr(1,k,1) + &    
+           rtp(kr,i,j)= qv_curr(k) + &
+                qc_curr(k) + &     
+                qr_curr(k) + &    
+                qi_curr(k) + &    
+                qs_curr(k) + &    
                 qg_curr(1,k,1) + &    
                 qh_curr(1,k,1)  
 
-           rcp(kr,i,j)= qc_curr(1,k,1)
-           rrp(kr,i,j)= qr_curr(1,k,1)
-           rpp(kr,i,j)= qi_curr(1,k,1)
-           rsp(kr,i,j)= qs_curr(1,k,1)
+           rcp(kr,i,j)= qc_curr(k)
+           rrp(kr,i,j)= qr_curr(k)
+           rpp(kr,i,j)= qi_curr(k)
+           rsp(kr,i,j)= qs_curr(k)
            rgp(kr,i,j)= qg_curr(1,k,1)
            rhp(kr,i,j)= qh_curr(1,k,1)  
 
            rv(kr,i,j)= max(1.0e-12, rtp(kr,i,j) -(rcp(kr,i,j)+rrp(kr,i,j)+rpp(kr,i,j)+rsp(kr,i,j)+rgp(kr,i,j)+rhp(kr,i,j)))
 
-           theta(kr,i,j) =  TH(1,k,1)
-           tempK        =  TH(1,k,1)*pi_phy(1,k,1)
+           theta(kr,i,j) =  TH(k)
+           tempK        =  TH(k)*pi_phy(k)
 
-           rliq     =  qc_curr(1,k,1) + qr_curr(1,k,1)       
-           rice     =  qi_curr(1,k,1) + qs_curr(1,k,1) + qg_curr(1,k,1) + qh_curr(1,k,1)
+           rliq     =  qc_curr(k) + qr_curr(k)       
+           rice     =  qi_curr(k) + qs_curr(k) + qg_curr(1,k,1) + qh_curr(1,k,1)
 
            !- update liq-ice potential temperature THP in Kelvin including microphysics processes
-           thp(kr,i,j)  =   TH(1,k,1)*(1. + alvl * rliq/(cp * max(tempK,253.))  &
+           thp(kr,i,j)  =   TH(k)*(1. + alvl * rliq/(cp * max(tempK,253.))  &
                 + alvi * rice/(cp * max(tempK,253.)) ) **(-1.0)      
         ENDDO
         !- definition for k=1
