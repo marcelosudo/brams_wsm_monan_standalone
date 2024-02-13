@@ -252,8 +252,62 @@ CONTAINS
          ! ENDDO
 		! BLOCK 1 - 0.7280159
 ! +---+-----------------------------------------------------------------+
+		! BLOCK 2 - 1.296308
+         IF ( PRESENT (diagflag) ) THEN
+         if (diagflag .and. do_radar_ref == 1) then
+      ! WRITE(emess,*)'calling refl10cm_wsm5 ',its, jts
+      ! CALL wrf_debug ( 0, emess )
+            ! DO I=its,ite
+               ! DO K=kts,kte
+                  ! t1d(k)=th(i,k,j)*pii(i,k,j)
+                  ! p1d(k)=p(i,k,j)
+                  ! qv1d(k)=q(i,k,j)
+                  ! qr1d(k)=qr(i,k,j)
+                  ! qs1d(k)=qs(i,k,j)
+               ! ENDDO
+			   ! print *,"call refl10cm_wsm5 OK"
+               call refl10cm_wsm5_x (q(kts:kte), qr(kts:kte), qs(kts:kte),  &
+                       th(kts:kte), pii(kts:kte), p(kts:kte), dBZ, kts, kte, i, j)
+			  ! call refl10cm_wsm5 (qv1d, qr1d, qs1d,                    &
+                      ! t1d, p1d, dBZ, kts, kte, i, j)
+               do k = kts, kte
+                  refl_10cm(i,k,j) = MAX(-35., dBZ(k))
+               enddo
+            ! ENDDO
+         endif
+         ENDIF
+		 ! BLOCK 2 - 1.296308
 
-! +---+-----------------------------------------------------------------+
+		 ! BLOCK 3 - 2.427831
+		 ! 1.489139 (tempo somente block 3, sem effecRad)
+         if (has_reqc.ne.0 .and. has_reqi.ne.0 .and. has_reqs.ne.0) then
+           ! do i=its,ite
+             do k=kts,kte
+               re_qc(k) = RE_QC_BG
+               re_qi(k) = RE_QI_BG 
+               re_qs(k) = RE_QS_BG
+
+               ! t1d(k)  = th(i,k,j)*pii(i,k,j)
+               ! den1d(k)= den(i,k,j)
+               ! qc1d(k) = qc(i,k,j)
+               ! qi1d(k) = qi(i,k,j)
+               ! qs1d(k) = qs(i,k,j)
+             enddo
+             call effectRad_wsm5_x(th(kts:kte), pii(kts:kte), qc(kts:kte), qi(kts:kte), qs(kts:kte), den(kts:kte),                 &
+                                 qmin, t0c, re_qc, re_qi, re_qs,               &
+                                 kts, kte, i, j)
+								 
+		     ! call effectRad_wsm5(t1d, qc1d, qi1d, qs1d, den1d,                 &
+                                ! qmin, t0c, re_qc, re_qi, re_qs,               &
+                                ! kts, kte, i, j)
+             do k=kts,kte
+               re_cloud(i,k,j) = MAX(RE_QC_BG, MIN(re_qc(k),  50.E-6))
+               re_ice(i,k,j)   = MAX(RE_QI_BG, MIN(re_qi(k), 125.E-6))
+               re_snow(i,k,j)  = MAX(RE_QS_BG, MIN(re_qs(k), 999.E-6))
+             enddo
+           ! enddo
+         endif     ! has_reqc, etc...
+		 ! BLOCK 3 - 2.427831
   END SUBROUTINE wsm5
 
 !#ifndef XEON_OPTIMIZED_WSM5
