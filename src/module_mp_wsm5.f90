@@ -11,7 +11,20 @@
 
 !Including inline expansion statistical function 
 MODULE module_mp_wsm5
-!
+
+!$acc routine(wsm52D)
+!$acc routine(refl10cm_wsm5)
+!$acc routine(effectRad_wsm5)
+!$acc routine(wsm5x)
+!$acc routine(slope_wsm5)
+!$acc routine(nislfv_rain_plm)
+!$acc routine(slope_rain)
+!$acc routine(slope_snow)
+!$acc routine(vsrec)
+!$acc routine(vssqrt)
+!$acc routine(cpmcal)
+!$acc routine(xlcall)
+
    USE module_mp_radar
    !-srf
    ! USE module_model_constants, only : RE_QC_BG, RE_QI_BG, RE_QS_BG
@@ -42,7 +55,8 @@ MODULE module_mp_wsm5
    REAL, PARAMETER, PRIVATE :: pfrz2 = 0.66       ! constant in Biggs freezing
    REAL, PARAMETER, PRIVATE :: qcrmin = 1.e-9     ! minimun values for qr, qs, and qg
    REAL, PARAMETER, PRIVATE :: eacrc = 1.0        ! Snow/cloud-water collection efficiency
-   REAL, SAVE ::                                      &
+   ! REAL, SAVE ::  !30/11/2023  
+	REAL ::     &
              qc0, qck1, pidnc,                        &
              bvtr1,bvtr2,bvtr3,bvtr4,g1pbr,           &
              g3pbr,g4pbr,g5pbro2,pvtr,eacrr,pacrr,    &
@@ -51,27 +65,42 @@ MODULE module_mp_wsm5
              g5pbso2,pvts,pacrs,precs1,precs2,pidn0r, &
              pidn0s,xlv1,pacrc,pi,                    &
              rslopermax,rslopesmax,rslopegmax,        &
-             rsloperbmax,rslopesbmax,rslopegbmax,     &
-             rsloper2max,rslopes2max,rslopeg2max,     &
-             rsloper3max,rslopes3max,rslopeg3max
-!
+             rsloperbmax,rslopesbmax,     &
+             rsloper2max,rslopes2max,     &
+             rsloper3max,rslopes3max
+
+!newCode begin
+!$acc declare create(qc0, qck1, pidnc)
+!$acc declare create(bvtr1,bvtr2,bvtr3,bvtr4,g1pbr)
+!$acc declare create(g3pbr,g4pbr,g5pbro2,pvtr,eacrr,pacrr)
+!$acc declare create(precr1,precr2,xmmax,roqimax,bvts1)
+!$acc declare create(bvts2,bvts3,bvts4,g1pbs,g3pbs,g4pbs)
+!$acc declare create(g5pbso2,pvts,pacrs,precs1,precs2,pidn0r)
+!$acc declare create(pidn0s,xlv1,pacrc,pi)
+!$acc declare create(rslopermax,rslopesmax,rslopegmax)
+!$acc declare create(rsloperbmax,rslopesbmax)
+!$acc declare create(rsloper2max,rslopes2max)
+!$acc declare create(rsloper3max,rslopes3max)
+!newCode end
+
 ! Specifies code-inlining of fpvs function in WSM52D below. JM 20040507
 !
 CONTAINS
+
 !===================================================================
 !
-  SUBROUTINE wsm5(th, q, qc, qr, qi, qs                            &
-                 ,den, pii, p, delz                                &
-                 ,delt, g, cpd, cpv, rd, rv, t0c                    &
+  SUBROUTINE wsm5(th, q, qc, qr, qi, qs                            & !(private - todas)
+                 ,den, pii, p, delz                                & !(private - todas)
+                 ,delt, g, cpd, cpv, rd, rv, t0c                   & !(private - somente delt)
                  ,ep1, ep2, qmin                                   &
                  ,XLS, XLV0, XLF0, den0, denr                      &
                  ,cliq,cice,psat                                   &
-                 ,rain, rainncv                                    &
-                 ,snow, snowncv                                    &
-                 ,sr                                               &
-                 ,refl_10cm, diagflag, do_radar_ref                &
+                 ,rain, rainncv                                    & !(private - todas)
+                 ,snow, snowncv                                    & !(private - todas)
+                 ,sr                                               & !(private)
+                 ,refl_10cm, diagflag, do_radar_ref                & !(private - somente refl_10cm)
                  ,has_reqc, has_reqi, has_reqs                     &  ! for radiation
-                 ,re_cloud, re_ice,   re_snow                      &  ! for radiation       
+                 ,re_cloud, re_ice, re_snow                        &  ! for radiation (private - todas)      
                  ,ids,ide, jds,jde, kds,kde                        &
                  ,ims,ime, jms,jme, kms,kme                        &
                  ,its,ite, jts,jte, kts,kte                        &
@@ -80,21 +109,29 @@ CONTAINS
   IMPLICIT NONE
 !-------------------------------------------------------------------
 !
+   !-srf
+   ! USE module_model_constants, only : RE_QC_BG, RE_QI_BG, RE_QS_BG
+   REAL    , PARAMETER :: RE_QC_BG     = 2.51E-6     ! effective radius of cloud for background (m)
+   REAL    , PARAMETER :: RE_QI_BG     = 5.01E-6     ! effective radius of ice for background (m)
+   REAL    , PARAMETER :: RE_QS_BG     = 10.01E-6    ! effective radius of snow for background (m)
+   !-srf
+   
   INTEGER,      INTENT(IN   )    ::   ids,ide, jds,jde, kds,kde , &
                                       ims,ime, jms,jme, kms,kme , &
                                       its,ite, jts,jte, kts,kte
-  REAL, DIMENSION( ims:ime , kms:kme , jms:jme ),                 &
+
+  REAL, DIMENSION(kms:kme),                 &
         INTENT(INOUT) ::                                          &
-                                                             th,  &
+                                                             th, pii,  &
                                                               q,  &
                                                               qc, &
                                                               qi, &
                                                               qr, &
                                                               qs
-  REAL, DIMENSION( ims:ime , kms:kme , jms:jme ),                 &
+  REAL, DIMENSION(kms:kme),                 &
         INTENT(IN   ) ::                                          &
                                                              den, &
-                                                             pii, &
+                                                             ! pii, &
                                                                p, &
                                                             delz
   REAL, INTENT(IN   ) ::                                    delt, &
@@ -141,8 +178,8 @@ CONTAINS
 !#ifdef XEON_OPTIMIZED_WSM5
 !#  include "mic-wsm5-3-5-locvar.h"
 !#else
-  REAL, DIMENSION( its:ite , kts:kte ) ::   t
-  REAL, DIMENSION( its:ite , kts:kte, 2 ) ::   qci, qrs
+  ! REAL, DIMENSION(kms:kme) ::   t
+  ! REAL, DIMENSION( its:ite , kts:kte, 2 ) ::   qci, qrs
   CHARACTER*256 :: emess
   INTEGER ::               i,j,k
 !#endif
@@ -160,132 +197,122 @@ CONTAINS
   REAL, DIMENSION( kts:kte ) :: re_qc, re_qi, re_qs
 
 !+---+-----------------------------------------------------------------+
+!$acc routine seq
 
-!#ifndef XEON_OPTIMIZED_WSM5
-      DO j=jts,jte
-         DO k=kts,kte
-         DO i=its,ite
-            t(i,k)=th(i,k,j)*pii(i,k,j)
-            qci(i,k,1) = qc(i,k,j)
-            qci(i,k,2) = qi(i,k,j)
-            qrs(i,k,1) = qr(i,k,j)
-            qrs(i,k,2) = qs(i,k,j)
-         ENDDO
-         ENDDO
+! #ifndef XEON_OPTIMIZED_WSM5
+! print *,"ifndef XEON_OPTIMIZED_WSM5 OK"
+      !! DO j=jts,jte
+	  j=jts ! BLOCK 1
+         ! DO k=kts,kte
+         ! DO i=its,ite
+            ! t(i,k)=th(i,k,j)*pii(i,k,j)
+            ! qci(i,k,1) = qc(i,k,j)
+            ! qci(i,k,2) = qi(i,k,j)
+            ! qrs(i,k,1) = qr(i,k,j)
+            ! qrs(i,k,2) = qs(i,k,j)
+         ! ENDDO
+         ! ENDDO
           ! Sending array starting locations of optional variables may cause
           ! troubles, so we explicitly change the call.
-         CALL wsm52D(t, q(ims,kms,j), qci, qrs                     &
-                    ,den(ims,kms,j)                                &
-                    ,p(ims,kms,j), delz(ims,kms,j)                 &
-                    ,delt,g, cpd, cpv, rd, rv, t0c                 &
+		  ! th(1,kts:kte,j), pii(1,kts:kte,j)
+         CALL wsm52D(&!t, q(ims,kms,j), qci, qrs &
+					th(kts:kte), pii(kts:kte), q(kms),& !(private - todas)
+					qc(kts:kte),qi(kts:kte),& !(private - todas)
+					qr(kts:kte), qs(kts:kte) & !(private - todas)
+                    ,den(kms)                                & !(private - todas)
+                    ,p(kms), delz(kms),                & !(private - todas)
+                    delt,g, cpd, cpv, rd, rv, t0c                  & !(private - somente delt)
                     ,ep1, ep2, qmin                                &
                     ,XLS, XLV0, XLF0, den0, denr                   &
                     ,cliq,cice,psat                                &
                     ,j                                             &
-                    ,rain(ims,j),rainncv(ims,j)                    &
-                    ,sr(ims,j)                                     &
+                    ,rain(ims,j),rainncv(ims,j)                    & !(private - todas)
+                    ,sr(ims,j)                                     & !(private - todas)
                     ,ids,ide, jds,jde, kds,kde                     &
                     ,ims,ime, jms,jme, kms,kme                     &
                     ,its,ite, jts,jte, kts,kte                     &
-                    ,snow,snowncv                                  &
-                                                                   )
-         DO K=kts,kte
-         DO I=its,ite
-            th(i,k,j)=t(i,k)/pii(i,k,j)
-            qc(i,k,j) = qci(i,k,1)
-            qi(i,k,j) = qci(i,k,2)
-            qr(i,k,j) = qrs(i,k,1)
-            qs(i,k,j) = qrs(i,k,2)
-         ENDDO
-         ENDDO
-
-!+---+-----------------------------------------------------------------+
+                    ,snow,snowncv                                  & !(private - todas)
+                                                                  )
+														   
+         ! DO K=kts,kte
+         ! DO I=its,ite
+            ! th(i,k,j)=t(i,k)/pii(i,k,j)
+            ! qc(i,k,j) = qci(i,k,1)
+            ! qi(i,k,j) = qci(i,k,2)
+            ! qr(i,k,j) = qrs(i,k,1)
+            ! qs(i,k,j) = qrs(i,k,2)
+         ! ENDDO
+         ! ENDDO
+		! BLOCK 1
+! +---+-----------------------------------------------------------------+
+		! BLOCK 2
          IF ( PRESENT (diagflag) ) THEN
          if (diagflag .and. do_radar_ref == 1) then
       ! WRITE(emess,*)'calling refl10cm_wsm5 ',its, jts
       ! CALL wrf_debug ( 0, emess )
-            DO I=its,ite
-               DO K=kts,kte
-                  t1d(k)=th(i,k,j)*pii(i,k,j)
-                  p1d(k)=p(i,k,j)
-                  qv1d(k)=q(i,k,j)
-                  qr1d(k)=qr(i,k,j)
-                  qs1d(k)=qs(i,k,j)
-               ENDDO
-               call refl10cm_wsm5 (qv1d, qr1d, qs1d,                    &
-                       t1d, p1d, dBZ, kts, kte, i, j)
+            ! DO I=its,ite
+               ! DO K=kts,kte
+                  ! t1d(k)=th(i,k,j)*pii(i,k,j)
+                  ! p1d(k)=p(i,k,j)
+                  ! qv1d(k)=q(i,k,j)
+                  ! qr1d(k)=qr(i,k,j)
+                  ! qs1d(k)=qs(i,k,j)
+               ! ENDDO
+			   ! print *,"call refl10cm_wsm5 OK"
+               call refl10cm_wsm5_x (q(kts:kte), qr(kts:kte), qs(kts:kte),  &
+                       th(kts:kte), pii(kts:kte), p(kts:kte), dBZ, kts, kte, i, j)
+			  ! call refl10cm_wsm5 (qv1d, qr1d, qs1d,                    &
+                      ! t1d, p1d, dBZ, kts, kte, i, j)
                do k = kts, kte
                   refl_10cm(i,k,j) = MAX(-35., dBZ(k))
                enddo
-            ENDDO
+            ! ENDDO
          endif
          ENDIF
+		 ! BLOCK 2
 
+		 ! BLOCK 3
          if (has_reqc.ne.0 .and. has_reqi.ne.0 .and. has_reqs.ne.0) then
-           do i=its,ite
+           ! do i=its,ite
              do k=kts,kte
                re_qc(k) = RE_QC_BG
                re_qi(k) = RE_QI_BG 
                re_qs(k) = RE_QS_BG
 
-               t1d(k)  = th(i,k,j)*pii(i,k,j)
-               den1d(k)= den(i,k,j)
-               qc1d(k) = qc(i,k,j)
-               qi1d(k) = qi(i,k,j)
-               qs1d(k) = qs(i,k,j)
+               ! t1d(k)  = th(i,k,j)*pii(i,k,j)
+               ! den1d(k)= den(i,k,j)
+               ! qc1d(k) = qc(i,k,j)
+               ! qi1d(k) = qi(i,k,j)
+               ! qs1d(k) = qs(i,k,j)
              enddo
-             call effectRad_wsm5(t1d, qc1d, qi1d, qs1d, den1d,                 &
+             call effectRad_wsm5_x(th(kts:kte), pii(kts:kte), qc(kts:kte), qi(kts:kte), qs(kts:kte), den(kts:kte),                 &
                                  qmin, t0c, re_qc, re_qi, re_qs,               &
                                  kts, kte, i, j)
+								 
+		     ! call effectRad_wsm5(t1d, qc1d, qi1d, qs1d, den1d,                 &
+                                ! qmin, t0c, re_qc, re_qi, re_qs,               &
+                                ! kts, kte, i, j)
              do k=kts,kte
                re_cloud(i,k,j) = MAX(RE_QC_BG, MIN(re_qc(k),  50.E-6))
                re_ice(i,k,j)   = MAX(RE_QI_BG, MIN(re_qi(k), 125.E-6))
                re_snow(i,k,j)  = MAX(RE_QS_BG, MIN(re_qs(k), 999.E-6))
              enddo
-           enddo
+           ! enddo
          endif     ! has_reqc, etc...
-!+---+-----------------------------------------------------------------+
-
-      ENDDO !! ATE AQUI 16/01/2024
-!#else
-!  ! Code to call the XEON-optimized WSM5 is included here
-!  ! this also contains OpenMP directives, so they are 
-!  ! removed from the driver in the case where WSM5SCHEME
-!  ! is selected.
-!#  include "mic-wsm5-3-5-callsite.h"
-!   IF ( PRESENT (diagflag) ) THEN
-!     IF (diagflag .and. do_radar_ref == 1) then
-!      !$OMP PARALLEL DO   &
-!      !$OMP PRIVATE ( i,j,k,t1d,p1d,qv1d,qr1d,qs1d,dBZ )
-!      DO j=jts,jte
-!        DO I=its,ite
-!          DO K=kts,kte
-!            t1d(k)=th(i,k,j)*pii(i,k,j)
-!            p1d(k)=p(i,k,j)
-!            qv1d(k)=q(i,k,j)
-!            qr1d(k)=qr(i,k,j)
-!            qs1d(k)=qs(i,k,j)
-!          ENDDO
-!          call refl10cm_wsm5 (qv1d, qr1d, qs1d,                    &
-!                              t1d, p1d, dBZ, kts, kte, i, j)
-!          DO k = kts, kte
-!                   refl_10cm(i,k,j) = MAX(-35., dBZ(k))
-!          ENDDO
-!        ENDDO
-!      ENDDO
-!      !$OMP END PARALLEL DO
-!     ENDIF
-!   ENDIF
-!#endif
-
+		 ! BLOCK 3
   END SUBROUTINE wsm5
 
 !#ifndef XEON_OPTIMIZED_WSM5
 !===================================================================
-!
-  SUBROUTINE wsm52D(t, q                                          & 
-                   ,qci, qrs, den, p, delz                        &
-                   ,delt,g, cpd, cpv, rd, rv, t0c                 &
+! t(i,k)=th(i,k,j)*pii(i,k,j)
+! th(i,k,j)=t(i,k)/pii(i,k,j)
+!th, pii
+  SUBROUTINE wsm52D(& !t, q, qci, qrs, &
+					th, pii, q,                                   & 
+                   qc, qi, & 
+				   qr, qs, &
+				   den, p, delz,                        &
+                   delt,g, cpd, cpv, rd, rv, t0c                 &
                    ,ep1, ep2, qmin                                &
                    ,XLS, XLV0, XLF0, den0, denr                   &
                    ,cliq,cice,psat                                &
@@ -337,17 +364,16 @@ CONTAINS
                                       ims,ime, jms,jme, kms,kme , &
                                       its,ite, jts,jte, kts,kte,  &
                                       lat
-  REAL, DIMENSION( its:ite , kts:kte ),                           &
+  REAL, DIMENSION(kts:kte ),                           &
         INTENT(INOUT) ::                                          &
-                                                              t
-  REAL, DIMENSION( its:ite , kts:kte, 2 ),                        &
-        INTENT(INOUT) ::                                          &
-                                                             qci, &
-                                                             qrs
-  REAL, DIMENSION( ims:ime , kms:kme ),                           &
+                                                              th, pii, qc, qi, qr, qs
+  REAL, DIMENSION(kts:kte ) ::                         t, &
+		                                                     xl, &
+                                                             cpm
+  REAL, DIMENSION(kms:kme ),                           &
         INTENT(INOUT) ::                                          &
                                                                q
-  REAL, DIMENSION( ims:ime , kms:kme ),                           &
+  REAL, DIMENSION(kms:kme ),                           &
         INTENT(IN   ) ::                                          &
                                                              den, &
                                                                p, &
@@ -378,9 +404,12 @@ CONTAINS
         INTENT(INOUT) ::                                    snow, &
                                                          snowncv
 ! LOCAL VAR
-  REAL, DIMENSION( its:ite , kts:kte , 2) ::                      &
+  REAL, DIMENSION(kts:kte , 2) ::                      &
                                                               rh, &
-                                                              qs, &
+                                                              qss
+  REAL, DIMENSION( its:ite , kts:kte , 2) ::                      &
+                                                              ! rh, &
+                                                              ! qss, &
                                                           rslope, &
                                                          rslope2, &
                                                          rslope3, &
@@ -392,8 +421,8 @@ CONTAINS
   REAL, DIMENSION( its:ite , kts:kte ) ::                         &
                                                            falkc, &
                                                            fallc, &
-                                                              xl, &
-                                                             cpm, &
+                                                              ! xl, &
+                                                             ! cpm, &
                                                           denfac, &
                                                              xni, &
                                                          denqrs1, &
@@ -405,9 +434,9 @@ CONTAINS
                                                            works, &
                                                           work1c, &
                                                           work2c
-  REAL, DIMENSION( its:ite , kts:kte ) ::                         &
-                                                         den_tmp, &
-                                                        delz_tmp
+  ! REAL, DIMENSION( its:ite , kts:kte ) ::                         &
+                                                         ! den_tmp, &
+                                                        ! delz_tmp
   REAL, DIMENSION( its:ite ) ::                                   &
                                                          delqrs1, &
                                                          delqrs2, &
@@ -454,10 +483,11 @@ CONTAINS
 ! Temporaries used for inlining fpvs function
   REAL  :: dldti, xb, xai, tr, xbi, xa, hvap, cvap, hsub, dldt, ttp
   REAL  :: logtr
-!
+!$acc routine seq
+! return
 !=================================================================
 !   compute internal functions
-!!
+!
       cpmcal(x) = cpd*(1.-max(x,qmin))+max(x,qmin)*cpv
       xlcal(x) = xlv0-xlv1*(x-t0c)
 !----------------------------------------------------------------
@@ -477,198 +507,209 @@ CONTAINS
 !
 !----------------------------------------------------------------
 !     paddint 0 for negative values generated by dynamics
-!
+! BLOCK 1
       do k = kts, kte
-        do i = its, ite
-          qci(i,k,1) = max(qci(i,k,1),0.0)
-          qrs(i,k,1) = max(qrs(i,k,1),0.0)
-          qci(i,k,2) = max(qci(i,k,2),0.0)
-          qrs(i,k,2) = max(qrs(i,k,2),0.0)
-        enddo
+        ! do i = its, ite
+          ! qc(k) = max(qc(k),0.0) !15/02/2024 - desnecessário
+          ! qr(k) = max(qr(k),0.0)
+          ! qi(k) = max(qi(k),0.0)
+          ! qs(k) = max(qs(k),0.0)
+		  t(k)=th(k)*pii(k) !10/12/2023
+        ! enddo
       enddo
-!
+! /BLOCK 1
 !----------------------------------------------------------------
 !     latent heat for phase changes and heat capacity. neglect the
 !     changes during microphysical process calculation
 !     emanuel(1994)
-!
+! BLOCK 2
       do k = kts, kte
-        do i = its, ite
-          cpm(i,k) = cpmcal(q(i,k))
-          xl(i,k) = xlcal(t(i,k))
-        enddo
+        ! do i = its, ite
+          cpm(k) = cpmcal(q(k))
+          xl(k) = xlcal(t(k))		  
+        ! enddo
       enddo
-      do k = kts, kte
-        do i = its, ite
-          delz_tmp(i,k) = delz(i,k)
-          den_tmp(i,k) = den(i,k)
-        enddo
-      enddo
-!
+! /BLOCK 2
+! BLOCK 3
+      ! do k = kts, kte
+        ! do i = its, ite
+          ! delz_tmp(i,k) = delz(k) !! 19/02 USAR variáveis diretamente, e não tmp 
+          ! den_tmp(i,k) = den(k)
+        ! enddo
+      ! enddo
+! / BLOCK 3
 !----------------------------------------------------------------
 !    initialize the surface rain, snow
-!
-      do i = its, ite
+! BLOCK 4
+      ! do i = its, ite
+		i = 1
         rainncv(i) = 0.
         if(PRESENT (snowncv) .AND. PRESENT (snow)) snowncv(i,lat) = 0.
         sr(i) = 0.
 ! new local array to catch step snow
         tstepsnow(i) = 0.
-      enddo
-!
+      ! enddo
+! /BLOCK 4
 !----------------------------------------------------------------
 !     compute the minor time steps.
 !
       loops = max(nint(delt/dtcldcr),1)
       dtcld = delt/loops
       if(delt.le.dtcldcr) dtcld = delt
-
-      do loop = 1,loops
+	! print*,'loops',loops - sempre 1
+     ! do loop = 1,loops DESCOMENTAR
 !
 !----------------------------------------------------------------
 !     initialize the large scale variables
-!
-      do i = its, ite
+! BLOCK 5
+      ! do i = its, ite
         mstep(i) = 1
         flgcld(i) = .true.
-      enddo
-!
-!     do k = kts, kte
-!       do i = its, ite
-!         denfac(i,k) = sqrt(den0/den(i,k))
-!       enddo
-!     enddo
+      ! enddo
+!/BLOCK 5
+!BLOCK 6 !0.8575728
       do k = kts, kte
-        CALL VSREC( tvec1(its), den(its,k), ite-its+1)
+        CALL VSREC( tvec1(its), den(k), ite-its+1)
         do i = its, ite
           tvec1(i) = tvec1(i)*den0
         enddo
         CALL VSSQRT( denfac(its,k), tvec1(its), ite-its+1)
       enddo
-!
-! Inline expansion for fpvs
-!         qs(i,k,1) = fpvs(t(i,k),0,rd,rv,cpv,cliq,cice,xlv0,xls,psat,t0c)
-!         qs(i,k,2) = fpvs(t(i,k),1,rd,rv,cpv,cliq,cice,xlv0,xls,psat,t0c)
-      ! hsub = xls
-      ! hvap = xlv0
-      ! cvap = cpv
-      ! ttp=t0c+0.01
-      ! dldt=cvap-cliq
-      ! xa=-dldt/rv
-      ! xb=xa+hvap/(rv*ttp)
-      ! dldti=cvap-cice
-      ! xai=-dldti/rv
-      ! xbi=xai+hsub/(rv*ttp)
+!/BLOCK 6
+!! Inline expansion for fpvs
+!!         qss(i,k,1) = fpvs(t(i,k),0,rd,rv,cpv,cliq,cice,xlv0,xls,psat,t0c)
+!!         qss(i,k,2) = fpvs(t(i,k),1,rd,rv,cpv,cliq,cice,xlv0,xls,psat,t0c)
+      hsub = xls
+      hvap = xlv0
+      cvap = cpv
+      ttp=t0c+0.01
+      dldt=cvap-cliq
+      xa=-dldt/rv
+      xb=xa+hvap/(rv*ttp)
+      dldti=cvap-cice
+      xai=-dldti/rv
+      xbi=xai+hsub/(rv*ttp)
 
-      ! do k = kts, kte
+!BLOCK 7 !0.8629489 
+      do k = kts, kte
         ! do i = its, ite
-          ! tr=ttp/t(i,k)
-          ! logtr=log(tr)
-          ! qs(i,k,1)=psat*exp(logtr*(xa)+xb*(1.-tr))
-          ! qs(i,k,1) = min(qs(i,k,1),0.99*p(i,k))
-          ! qs(i,k,1) = ep2 * qs(i,k,1) / (p(i,k) - qs(i,k,1))
-          ! qs(i,k,1) = max(qs(i,k,1),qmin)
-          ! rh(i,k,1) = max(q(i,k) / qs(i,k,1),qmin)
-          ! if(t(i,k).lt.ttp) then
-            ! qs(i,k,2)=psat*exp(logtr*(xai)+xbi*(1.-tr))
-          ! else
-            ! qs(i,k,2)=psat*exp(logtr*(xa)+xb*(1.-tr))
-          ! endif
-          ! qs(i,k,2) = min(qs(i,k,2),0.99*p(i,k))
-          ! qs(i,k,2) = ep2 * qs(i,k,2) / (p(i,k) - qs(i,k,2))
-          ! qs(i,k,2) = max(qs(i,k,2),qmin)
-          ! rh(i,k,2) = max(q(i,k) / qs(i,k,2),qmin)
+          tr=ttp/t(k)
+          logtr=log(tr)
+          qss(k,1)=psat*exp(logtr*(xa)+xb*(1.-tr))
+          qss(k,1) = min(qss(k,1),0.99*p(k))
+          qss(k,1) = ep2 * qss(k,1) / (p(k) - qss(k,1))
+          qss(k,1) = max(qss(k,1),qmin)
+          rh(k,1) = max(q(k) / qss(k,1),qmin)
+          if(t(k).lt.ttp) then
+            qss(k,2)=psat*exp(logtr*(xai)+xbi*(1.-tr))
+          else
+            qss(k,2)=psat*exp(logtr*(xa)+xb*(1.-tr))
+          endif
+          qss(k,2) = min(qss(k,2),0.99*p(k))
+          qss(k,2) = ep2 * qss(k,2) / (p(k) - qss(k,2))
+          qss(k,2) = max(qss(k,2),qmin)
+          rh(k,2) = max(q(k) / qss(k,2),qmin)
         ! enddo
-      ! enddo
-!        enddo
-!      enddo
-!
+      enddo
+!/BLOCK 7
 !----------------------------------------------------------------
 !     initialize the variables for microphysical physics
 !
-!
+!BLOCK 8 !0.8294189
       ! do k = kts, kte
         ! do i = its, ite
-          ! prevp(i,k) = 0.
-          ! psdep(i,k) = 0.
-          ! praut(i,k) = 0.
-          ! psaut(i,k) = 0.
-          ! pracw(i,k) = 0.
-          ! psaci(i,k) = 0.
-          ! psacw(i,k) = 0.
-          ! pigen(i,k) = 0.
-          ! pidep(i,k) = 0.
-          ! pcond(i,k) = 0.
-          ! psmlt(i,k) = 0.
-          ! psevp(i,k) = 0.
-          ! falk(i,k,1) = 0.
-          ! falk(i,k,2) = 0.
-          ! fall(i,k,1) = 0.
-          ! fall(i,k,2) = 0.
-          ! fallc(i,k) = 0.
-          ! falkc(i,k) = 0.
-          ! xni(i,k) = 1.e3
+          ! prevp(i,kts:kte) = 0.
+          ! psdep(i,kts:kte) = 0.
+          ! praut(i,kts:kte) = 0.
+          ! psaut(i,kts:kte) = 0.
+          ! pracw(i,kts:kte) = 0.
+          ! psaci(i,kts:kte) = 0.
+          ! psacw(i,kts:kte) = 0.
+          ! pigen(i,kts:kte) = 0.
+          ! pidep(i,kts:kte) = 0.
+          ! pcond(i,kts:kte) = 0.
+          ! psmlt(i,kts:kte) = 0.
+          ! psevp(i,kts:kte) = 0.
+          ! falk(i,kts:kte,1) = 0.
+          ! falk(i,kts:kte,2) = 0.
+          ! fall(i,kts:kte,1) = 0.
+          ! fall(i,kts:kte,2) = 0.
+          ! fallc(i,kts:kte) = 0.
+          ! falkc(i,kts:kte) = 0.
+          ! xni(i,kts:kte) = 1.e3
         ! enddo
       ! enddo
+!/BLOCK 8
 !-------------------------------------------------------------
 ! Ni: ice crystal number concentraiton   [HDC 5c]
 !-------------------------------------------------------------
+!BLOCK 9 !0.8618581
       ! do k = kts, kte
         ! do i = its, ite
-          ! temp = (den(i,k)*max(qci(i,k,2),qmin))
+          ! temp = (den(k)*max(qci(i,k,2),qmin))
           ! temp = sqrt(sqrt(temp*temp*temp))
           ! xni(i,k) = min(max(5.38e7*temp,1.e3),1.e6)
         ! enddo
       ! enddo
-!
+!/BLOCK 9
 !----------------------------------------------------------------
 !     compute the fallout term:
 !     first, vertical terminal velosity for minor loops
 !----------------------------------------------------------------
+!BLOCK 10 !0.8670120
       ! do k = kts, kte
         ! do i = its, ite
           ! qrs_tmp(i,k,1) = qrs(i,k,1)
           ! qrs_tmp(i,k,2) = qrs(i,k,2)
         ! enddo
       ! enddo
+!/BLOCK 10
       ! call slope_wsm5(qrs_tmp,den_tmp,denfac,t,rslope,rslopeb,rslope2,rslope3, &
-                     ! work1,its,ite,kts,kte)
-
+                     ! work1,its,ite,kts,kte) DESCOMENTAR
+!BLOCK 11 !0.8136392
       ! do k = kte, kts, -1
         ! do i = its, ite
           ! workr(i,k) = work1(i,k,1) 
           ! works(i,k) = work1(i,k,2) 
-          ! denqrs1(i,k) = den(i,k)*qrs(i,k,1)
-          ! denqrs2(i,k) = den(i,k)*qrs(i,k,2)
+          ! denqrs1(i,k) = den(k)*qrs(i,k,1)
+          ! denqrs2(i,k) = den(k)*qrs(i,k,2)
           ! if(qrs(i,k,1).le.0.0) workr(i,k) = 0.0
           ! if(qrs(i,k,2).le.0.0) works(i,k) = 0.0
         ! enddo
       ! enddo
+!/BLOCK 11
 	! t = 1.
       ! call nislfv_rain_plm(idim,kdim,den_tmp,denfac,t,delz_tmp,workr,denqrs1,  &
-                           ! delqrs1,dtcld,1,1)
+                           ! delqrs1,dtcld,1,1) DESCOMENTAR
       ! call nislfv_rain_plm(idim,kdim,den_tmp,denfac,t,delz_tmp,works,denqrs2,  &
-                           ! delqrs2,dtcld,2,1)
+                           ! delqrs2,dtcld,2,1) DESCOMENTAR
+!BLOCK 12 !0.8296371 BUG rrp, rtp, thp
       ! do k = kts, kte
         ! do i = its, ite
-		  ! qrs(i,k,1) = max(denqrs1(i,k)/den(i,k),0.)
-          ! qrs(i,k,2) = max(denqrs2(i,k)/den(i,k),0.)
-          ! fall(i,k,1) = denqrs1(i,k)*workr(i,k)/delz(i,k)
-          ! fall(i,k,2) = denqrs2(i,k)*works(i,k)/delz(i,k)
+          ! qrs(i,k,1) = max(denqrs1(i,k)/den(k),0.)
+          ! qrs(i,k,2) = max(denqrs2(i,k)/den(k),0.)
+          ! fall(i,k,1) = denqrs1(i,k)*workr(i,k)/delz(k)
+          ! fall(i,k,2) = denqrs2(i,k)*works(i,k)/delz(k)
         ! enddo
       ! enddo
+!/BLOCK 12
+!BLOCK 13 !0.8716211 - VALIDADO
       ! do i = its, ite
         ! fall(i,1,1) = delqrs1(i)/delz(i,1)/dtcld
         ! fall(i,1,2) = delqrs2(i)/delz(i,1)/dtcld
       ! enddo
+!/BLOCK 13
+!BLOCK 14 !0.7921262 - VALIDADO
       ! do k = kts, kte
         ! do i = its, ite
           ! qrs_tmp(i,k,1) = qrs(i,k,1)
           ! qrs_tmp(i,k,2) = qrs(i,k,2)
         ! enddo
       ! enddo
+!/BLOCK 14
       ! call slope_wsm5(qrs_tmp,den_tmp,denfac,t,rslope,rslopeb,rslope2,rslope3, &
-                     ! work1,its,ite,kts,kte)
+                     ! work1,its,ite,kts,kte) ! VALIDADO
+!BLOCK 15 !0.8217640 !! BUG rrp
       ! do k = kte, kts, -1
         ! do i = its, ite
           ! supcol = t0c-t(i,k)
@@ -679,19 +720,18 @@ CONTAINS
       ! (T>T0: S->R)
 ! ----------------------------------------------------------------
             ! xlf = xlf0
-          ! work2(i,k)= venfac(p(i,k),t(i,k),den(i,k))
             ! work2(i,k)= (exp(log(((1.496e-6*((t(i,k))*sqrt(t(i,k)))        &
-                        ! /((t(i,k))+120.)/(den(i,k)))/(8.794e-5             &
-                        ! *exp(log(t(i,k))*(1.81))/p(i,k))))                 &
+                        ! /((t(i,k))+120.)/(den(k)))/(8.794e-5             &
+                        ! *exp(log(t(i,k))*(1.81))/p(k))))                 &
                         ! *((.3333333)))/sqrt((1.496e-6*((t(i,k))            &
-                        ! *sqrt(t(i,k)))/((t(i,k))+120.)/(den(i,k))))        &
-                        ! *sqrt(sqrt(den0/(den(i,k)))))
+                        ! *sqrt(t(i,k)))/((t(i,k))+120.)/(den(k))))        &
+                        ! *sqrt(sqrt(den0/(den(k)))))
             ! coeres = rslope2(i,k,2)*sqrt(rslope(i,k,2)*rslopeb(i,k,2))
             ! psmlt(i,k) = (1.414e3*(1.496e-6*((t(i,k))*sqrt(t(i,k)))        &
-                        ! /((t(i,k))+120.)/(den(i,k)) )*(den(i,k)))          &
+                        ! /((t(i,k))+120.)/(den(k)) )*(den(k)))          &
                         ! /xlf*(t0c-t(i,k))*pi/2.                            &
                         ! *n0sfac(i,k)*(precs1*rslope2(i,k,2)+precs2         &
-                        ! *work2(i,k)*coeres)/den(i,k)
+                        ! *work2(i,k)*coeres)/den(k)
             ! psmlt(i,k) = min(max(psmlt(i,k)*dtcld/mstep(i),                &
                         ! -qrs(i,k,2)/mstep(i)),0.)
             ! qrs(i,k,2) = qrs(i,k,2) + psmlt(i,k)
@@ -700,42 +740,48 @@ CONTAINS
           ! endif
         ! enddo
       ! enddo
+!/BLOCK 15
 !---------------------------------------------------------------
 ! Vice [ms-1] : fallout of ice crystal [HDC 5a]
 !---------------------------------------------------------------
+!BLOCK 16 !0.8442681 
       ! do k = kte, kts, -1
         ! do i = its, ite
           ! if(qci(i,k,2).le.0.) then
             ! work1c(i,k) = 0.
           ! else
-            ! xmi = den(i,k)*qci(i,k,2)/xni(i,k)
+            ! xmi = den(k)*qci(i,k,2)/xni(i,k)
             ! diameter  = max(min(dicon * sqrt(xmi),dimax), 1.e-25)
             ! work1c(i,k) = 1.49e4*exp(log(diameter)*(1.31))
           ! endif
         ! enddo
       ! enddo
-!
+!/BLOCK 16
 !  forward semi-laglangian scheme (JH), PCM (piecewise constant),  (linear)
-!
+!BLOCK 17 !0.8326032
       ! do k = kte, kts, -1
         ! do i = its, ite
-          ! denqci(i,k) = den(i,k)*qci(i,k,2)
+          ! denqci(i,k) = den(k)*qci(i,k,2)
         ! enddo
       ! enddo
+!/BLOCK 17
       ! call nislfv_rain_plm(idim,kdim,den_tmp,denfac,t,delz_tmp,work1c,denqci,  &
                            ! delqi,dtcld,1,0)
+!BLOCK 18 !0.8687339
       ! do k = kts, kte
         ! do i = its, ite
-          ! qci(i,k,2) = max(denqci(i,k)/den(i,k),0.)
+          ! qci(i,k,2) = max(denqci(i,k)/den(k),0.)
         ! enddo
       ! enddo
+!/BLOCK 18
+!BLOCK 19 !0.8241761
       ! do i = its, ite
         ! fallc(i,1) = delqi(i)/delz(i,1)/dtcld
       ! enddo
-!
+!/BLOCK 19
 !----------------------------------------------------------------
 !      rain (unit is mm/sec;kgm-2s-1: /1000*delt ===> m)==> mm for wrf
-!
+!BLOCK 20 !0.8583159
       ! do i = its, ite
         ! fallsum = fall(i,1,1)+fall(i,1,2)+fallc(i,1)
         ! fallsum_qsi = fall(i,1,2)+fallc(i,1)
@@ -758,11 +804,12 @@ CONTAINS
           ! if(fallsum.gt.0.)sr(i)=tstepsnow(i)/(rainncv(i)+1.e-12)
         ! ENDIF
       ! enddo
-!
+!/BLOCK 20
 !---------------------------------------------------------------
 ! pimlt: instantaneous melting of cloud ice [HL A47] [RH83 A28]
 !       (T>T0: I->C)
 !---------------------------------------------------------------
+!BLOCK 21 !0.8219631
       ! do k = kts, kte
         ! do i = its, ite
           ! supcol = t0c-t(i,k)
@@ -789,9 +836,9 @@ CONTAINS
           ! if(supcol.gt.0..and.qci(i,k,1).gt.0.) then
             ! supcolt=min(supcol,50.)
 !           pfrzdtc = min(pfrz1*(exp(pfrz2*supcol)-1.)                         &
-!              *den(i,k)/denr/xncr*qci(i,k,1)**2*dtcld,qci(i,k,1))
+!              *den(k)/denr/xncr*qci(i,k,1)**2*dtcld,qci(i,k,1))
             ! pfrzdtc = min(pfrz1*(exp(pfrz2*supcolt)-1.)                        &
-            ! *den(i,k)/denr/xncr*qci(i,k,1)*qci(i,k,1)*dtcld,qci(i,k,1))
+            ! *den(k)/denr/xncr*qci(i,k,1)*qci(i,k,1)*dtcld,qci(i,k,1))
             ! qci(i,k,2) = qci(i,k,2) + pfrzdtc
             ! t(i,k) = t(i,k) + xlf/cpm(i,k)*pfrzdtc
             ! qci(i,k,1) = qci(i,k,1)-pfrzdtc
@@ -802,12 +849,9 @@ CONTAINS
 !---------------------------------------------------------------
           ! if(supcol.gt.0..and.qrs(i,k,1).gt.0.) then
             ! supcolt=min(supcol,50.)
-!           pfrzdtr = min(20.*pi**2*pfrz1*n0r*denr/den(i,k)                    &
-!                 *(exp(pfrz2*supcol)-1.)*rslope(i,k,1)**7*dtcld,              &
-!                 qrs(i,k,1))
             ! temp = rslope(i,k,1)
             ! temp = temp*temp*temp*temp*temp*temp*temp
-            ! pfrzdtr = min(20.*(pi*pi)*pfrz1*n0r*denr/den(i,k)                  &
+            ! pfrzdtr = min(20.*(pi*pi)*pfrz1*n0r*denr/den(k)                  &
                   ! *(exp(pfrz2*supcolt)-1.)*temp*dtcld,                         &
                   ! qrs(i,k,1))
             ! qrs(i,k,2) = qrs(i,k,2) + pfrzdtr
@@ -816,16 +860,17 @@ CONTAINS
           ! endif
         ! enddo
       ! enddo
-!
+!/BLOCK 21
 !----------------------------------------------------------------
 !     update the slope parameters for microphysics computation
-!
+!BLOCK 22 !0.8470581
       ! do k = kts, kte
         ! do i = its, ite
           ! qrs_tmp(i,k,1) = qrs(i,k,1)
           ! qrs_tmp(i,k,2) = qrs(i,k,2)
         ! enddo
       ! enddo
+!/BLOCK 22
       ! call slope_wsm5(qrs_tmp,den_tmp,denfac,t,rslope,rslopeb,rslope2,rslope3, &
                      ! work1,its,ite,kts,kte)
 !------------------------------------------------------------------
@@ -833,28 +878,25 @@ CONTAINS
 !             heat conduction and vapor diffusion
 !             (ry88, y93, h85)
 !     work2: parameter associated with the ventilation effects(y93)
-!
+!BLOCK 23 !0.8421991
       ! do k = kts, kte
         ! do i = its, ite
-!         work1(i,k,1) = diffac(xl(i,k),p(i,k),t(i,k),den(i,k),qs(i,k,1))
           ! work1(i,k,1) = ((((den(i,k))*(xl(i,k))*(xl(i,k)))*((t(i,k))+120.)    &
                        ! *(den(i,k)))/(1.414e3*(1.496e-6*((t(i,k))*sqrt(t(i,k))))&
                        ! *(den(i,k))*(rv*(t(i,k))*(t(i,k)))))                    &
-                      ! +  p(i,k)/((qs(i,k,1))*(8.794e-5*exp(log(t(i,k))*(1.81))))
-!         work1(i,k,2) = diffac(xls,p(i,k),t(i,k),den(i,k),qs(i,k,2))
+                      ! +  p(k)/((qss(k,1))*(8.794e-5*exp(log(t(i,k))*(1.81))))
           ! work1(i,k,2) = ((((den(i,k))*(xls)*(xls))*((t(i,k))+120.)*(den(i,k)))&
                        ! /(1.414e3*(1.496e-6*((t(i,k))*sqrt(t(i,k))))*(den(i,k)) &
                        ! *(rv*(t(i,k))*(t(i,k))))                                &
-                      ! + p(i,k)/(qs(i,k,2)*(8.794e-5*exp(log(t(i,k))*(1.81)))))
-!         work2(i,k) = venfac(p(i,k),t(i,k),den(i,k))
+                      ! + p(k)/(qss(k,2)*(8.794e-5*exp(log(t(i,k))*(1.81)))))
           ! work2(i,k) = (exp(.3333333*log(((1.496e-6 * ((t(i,k))*sqrt(t(i,k)))) &
-                     ! *p(i,k))/(((t(i,k))+120.)*den(i,k)*(8.794e-5              &
+                     ! *p(k))/(((t(i,k))+120.)*den(i,k)*(8.794e-5              &
                      ! *exp(log(t(i,k))*(1.81))))))*sqrt(sqrt(den0/(den(i,k))))) &
                       ! /sqrt((1.496e-6*((t(i,k))*sqrt(t(i,k))))                 &
                       ! /(((t(i,k))+120.)*den(i,k)))
         ! enddo 
       ! enddo 
-!
+!/BLOCK 23
 !===============================================================
 !
 ! warm rain processes
@@ -862,10 +904,10 @@ CONTAINS
 ! - follows the processes in RH83 and LFO except for autoconcersion
 !
 !===============================================================
-!
+!BLOCK 24 !0.8380830
       ! do k = kts, kte
         ! do i = its, ite
-          ! supsat = max(q(i,k),qmin)-qs(i,k,1)
+          ! supsat = max(q(i,k),qmin)-qss(k,1)
           ! satdt = supsat/dtcld
 !---------------------------------------------------------------
 ! praut: auto conversion rate from cloud to rain [HDC 16]
@@ -889,7 +931,7 @@ CONTAINS
 !---------------------------------------------------------------
           ! if(qrs(i,k,1).gt.0.) then
             ! coeres = rslope2(i,k,1)*sqrt(rslope(i,k,1)*rslopeb(i,k,1))
-            ! prevp(i,k) = (rh(i,k,1)-1.)*(precr1*rslope2(i,k,1)                 &
+            ! prevp(i,k) = (rh(k,1)-1.)*(precr1*rslope2(i,k,1)                 &
                          ! +precr2*work2(i,k)*coeres)/work1(i,k,1)
             ! if(prevp(i,k).lt.0.) then
               ! prevp(i,k) = max(prevp(i,k),-qrs(i,k,1)/dtcld)
@@ -900,7 +942,7 @@ CONTAINS
           ! endif
         ! enddo
       ! enddo
-!
+!/BLOCK 24
 !===============================================================
 !
 ! cold rain processes
@@ -913,20 +955,18 @@ CONTAINS
 !   (n0i), ice diameter (d)
 !
 !===============================================================
-!
+!BLOCK 25 !0.8388951
       ! rdtcld = 1./dtcld
       ! do k = kts, kte
         ! do i = its, ite
           ! supcol = t0c-t(i,k)
           ! n0sfac(i,k) = max(min(exp(alpha*supcol),n0smax/n0s),1.)
-          ! supsat = max(q(i,k),qmin)-qs(i,k,2)
+          ! supsat = max(q(i,k),qmin)-qss(k,2)
           ! satdt = supsat/dtcld
           ! ifsat = 0
 !-------------------------------------------------------------
 ! Ni: ice crystal number concentraiton   [HDC 5c]
 !-------------------------------------------------------------
-!         xni(i,k) = min(max(5.38e7*(den(i,k)                                  &
-!                      *max(qci(i,k,2),qmin))**0.75,1.e3),1.e6)
           ! temp = (den(i,k)*max(qci(i,k,2),qmin))
           ! temp = sqrt(sqrt(temp*temp*temp))
           ! xni(i,k) = min(max(5.38e7*temp,1.e3),1.e6)
@@ -955,6 +995,7 @@ CONTAINS
           ! if(qrs(i,k,2).gt.qcrmin.and.qci(i,k,1).gt.qmin) then
             ! psacw(i,k) = min(pacrc*n0sfac(i,k)*rslope3(i,k,2)                  &
                            ! *rslopeb(i,k,2)*qci(i,k,1)*denfac(i,k)              &
+!                          ,qci(i,k,1)/dtcld)
                            ! ,qci(i,k,1)*rdtcld)
           ! endif
           ! if(supcol .gt. 0) then
@@ -965,15 +1006,12 @@ CONTAINS
             ! if(qci(i,k,2).gt.0.and.ifsat.ne.1) then
               ! xmi = den(i,k)*qci(i,k,2)/xni(i,k)
               ! diameter = dicon * sqrt(xmi)
-              ! pidep(i,k) = 4.*diameter*xni(i,k)*(rh(i,k,2)-1.)/work1(i,k,2)
+              ! pidep(i,k) = 4.*diameter*xni(i,k)*(rh(k,2)-1.)/work1(i,k,2)
               ! supice = satdt-prevp(i,k)
               ! if(pidep(i,k).lt.0.) then
-!               pidep(i,k) = max(max(pidep(i,k),satdt/2),supice)
-!               pidep(i,k) = max(pidep(i,k),-qci(i,k,2)/dtcld)
                 ! pidep(i,k) = max(max(pidep(i,k),satdt*.5),supice)
                 ! pidep(i,k) = max(pidep(i,k),-qci(i,k,2)*rdtcld)
               ! else
-!               pidep(i,k) = min(min(pidep(i,k),satdt/2),supice)
                 ! pidep(i,k) = min(min(pidep(i,k),satdt*.5),supice)
               ! endif
               ! if(abs(prevp(i,k)+pidep(i,k)).ge.abs(satdt)) ifsat = 1
@@ -984,17 +1022,14 @@ CONTAINS
 !-------------------------------------------------------------
             ! if(qrs(i,k,2).gt.0..and.ifsat.ne.1) then
               ! coeres = rslope2(i,k,2)*sqrt(rslope(i,k,2)*rslopeb(i,k,2))
-              ! psdep(i,k) = (rh(i,k,2)-1.)*n0sfac(i,k)                          &
+              ! psdep(i,k) = (rh(k,2)-1.)*n0sfac(i,k)                          &
                            ! *(precs1*rslope2(i,k,2)+precs2                      &
                            ! *work2(i,k)*coeres)/work1(i,k,2)
               ! supice = satdt-prevp(i,k)-pidep(i,k)
               ! if(psdep(i,k).lt.0.) then
-!               psdep(i,k) = max(psdep(i,k),-qrs(i,k,2)/dtcld)
-!               psdep(i,k) = max(max(psdep(i,k),satdt/2),supice)
                 ! psdep(i,k) = max(psdep(i,k),-qrs(i,k,2)*rdtcld)
                 ! psdep(i,k) = max(max(psdep(i,k),satdt*.5),supice)
               ! else
-!             psdep(i,k) = min(min(psdep(i,k),satdt/2),supice)
                 ! psdep(i,k) = min(min(psdep(i,k),satdt*.5),supice)
               ! endif
               ! if(abs(prevp(i,k)+pidep(i,k)+psdep(i,k)).ge.abs(satdt))          &
@@ -1009,7 +1044,6 @@ CONTAINS
               ! xni0 = 1.e3*exp(0.1*supcol)
               ! roqi0 = 4.92e-11*exp(log(xni0)*(1.33))
               ! pigen(i,k) = max(0.,(roqi0/den(i,k)-max(qci(i,k,2),0.))          &
-!                        /dtcld)
                          ! *rdtcld)
               ! pigen(i,k) = min(min(pigen(i,k),satdt),supice)
             ! endif
@@ -1019,8 +1053,7 @@ CONTAINS
 !       (T<T0: I->S)
 !-------------------------------------------------------------
             ! if(qci(i,k,2).gt.0.) then
-              ! qimax = roqimax/den(i,k)
-!             psaut(i,k) = max(0.,(qci(i,k,2)-qimax)/dtcld)
+              ! qimax = roqimax/den(k)
               ! psaut(i,k) = max(0.,(qci(i,k,2)-qimax)*rdtcld)
             ! endif
           ! endif
@@ -1029,25 +1062,24 @@ CONTAINS
 !       (T>T0: S->V)
 !-------------------------------------------------------------
           ! if(supcol.lt.0.) then
-            ! if(qrs(i,k,2).gt.0..and.rh(i,k,1).lt.1.)                           &
+            ! if(qrs(i,k,2).gt.0..and.rh(k,1).lt.1.)                           &
               ! psevp(i,k) = psdep(i,k)*work1(i,k,2)/work1(i,k,1)
-!              psevp(i,k) = min(max(psevp(i,k),-qrs(i,k,2)/dtcld),0.)
               ! psevp(i,k) = min(max(psevp(i,k),-qrs(i,k,2)*rdtcld),0.)
           ! endif
         ! enddo
       ! enddo
-!
+!/BLOCK 25
 !
 !----------------------------------------------------------------
 !     check mass conservation of generation terms and feedback to the
 !     large scale
-!
+!BLOCK 26 !0.8072529
       ! do k = kts, kte
         ! do i = its, ite
           ! if(t(i,k).le.t0c) then
-!
-!     cloud water
-!
+
+!    cloud water
+
             ! value = max(qmin,qci(i,k,1))
             ! source = (praut(i,k)+pracw(i,k)+psacw(i,k))*dtcld
             ! if (source.gt.value) then
@@ -1056,9 +1088,9 @@ CONTAINS
               ! pracw(i,k) = pracw(i,k)*factor
               ! psacw(i,k) = psacw(i,k)*factor
             ! endif
-!
-!     cloud ice
-!
+
+!    cloud ice
+
             ! value = max(qmin,qci(i,k,2))
             ! source = (psaut(i,k)+psaci(i,k)-pigen(i,k)-pidep(i,k))*dtcld
             ! if (source.gt.value) then
@@ -1068,10 +1100,10 @@ CONTAINS
               ! pigen(i,k) = pigen(i,k)*factor
               ! pidep(i,k) = pidep(i,k)*factor
             ! endif
-!
-!     rain
-!
-!
+
+!    rain
+
+
             ! value = max(qmin,qrs(i,k,1))
             ! source = (-praut(i,k)-pracw(i,k)-prevp(i,k))*dtcld
             ! if (source.gt.value) then
@@ -1080,9 +1112,9 @@ CONTAINS
               ! pracw(i,k) = pracw(i,k)*factor
               ! prevp(i,k) = prevp(i,k)*factor
             ! endif
-!
-!    snow
-!
+
+!   snow
+
             ! value = max(qmin,qrs(i,k,2))
             ! source = (-psdep(i,k)-psaut(i,k)-psaci(i,k)-psacw(i,k))*dtcld  
             ! if (source.gt.value) then
@@ -1092,9 +1124,9 @@ CONTAINS
               ! psaci(i,k) = psaci(i,k)*factor
               ! psacw(i,k) = psacw(i,k)*factor
             ! endif
-!
+
             ! work2(i,k)=-(prevp(i,k)+psdep(i,k)+pigen(i,k)+pidep(i,k))
-!     update
+!    update
             ! q(i,k) = q(i,k)+work2(i,k)*dtcld
             ! qci(i,k,1) = max(qci(i,k,1)-(praut(i,k)+pracw(i,k)                 &
                         ! +psacw(i,k))*dtcld,0.)
@@ -1109,9 +1141,9 @@ CONTAINS
                       ! -xl(i,k)*prevp(i,k)-xlf*psacw(i,k)
             ! t(i,k) = t(i,k)-xlwork2/cpm(i,k)*dtcld
           ! else
-!
-!     cloud water
-!
+
+!    cloud water
+
             ! value = max(qmin,qci(i,k,1))
             ! source=(praut(i,k)+pracw(i,k)+psacw(i,k))*dtcld
             ! if (source.gt.value) then
@@ -1120,9 +1152,9 @@ CONTAINS
               ! pracw(i,k) = pracw(i,k)*factor
               ! psacw(i,k) = psacw(i,k)*factor
             ! endif
-!
-!     rain
-!
+
+!    rain
+
             ! value = max(qmin,qrs(i,k,1))
             ! source = (-praut(i,k)-pracw(i,k)-prevp(i,k)-psacw(i,k))*dtcld
             ! if (source.gt.value) then
@@ -1132,9 +1164,9 @@ CONTAINS
               ! prevp(i,k) = prevp(i,k)*factor
               ! psacw(i,k) = psacw(i,k)*factor
             ! endif  
-!
-!     snow
-!
+
+!    snow
+
             ! value = max(qcrmin,qrs(i,k,2))
             ! source=(-psevp(i,k))*dtcld
             ! if (source.gt.value) then
@@ -1142,7 +1174,7 @@ CONTAINS
               ! psevp(i,k) = psevp(i,k)*factor
             ! endif
             ! work2(i,k)=-(prevp(i,k)+psevp(i,k))
-!     update
+!    update
             ! q(i,k) = q(i,k)+work2(i,k)*dtcld
             ! qci(i,k,1) = max(qci(i,k,1)-(praut(i,k)+pracw(i,k)                 &
                         ! +psacw(i,k))*dtcld,0.)
@@ -1155,11 +1187,9 @@ CONTAINS
           ! endif
         ! enddo
       ! enddo
-!
+!/BLOCK 26
 ! Inline expansion for fpvs
-!         qs(i,k,1) = fpvs(t(i,k),0,rd,rv,cpv,cliq,cice,xlv0,xls,psat,t0c)
-!         qs(i,k,2) = fpvs(t(i,k),1,rd,rv,cpv,cliq,cice,xlv0,xls,psat,t0c)
-      ! hsub = xls
+      ! hsub = xls DESCOMENTAR
       ! hvap = xlv0
       ! cvap = cpv
       ! ttp=t0c+0.01
@@ -1169,27 +1199,27 @@ CONTAINS
       ! dldti=cvap-cice
       ! xai=-dldti/rv
       ! xbi=xai+hsub/(rv*ttp)
+!BLOCK 27 !0.8587410
       ! do k = kts, kte
       ! do i = its, ite
           ! tr=ttp/t(i,k)
           ! logtr = log(tr)
-          ! qs(i,k,1)=psat*exp(logtr*(xa)+xb*(1.-tr))
-          ! qs(i,k,1) = min(qs(i,k,1),0.99*p(i,k))
-          ! qs(i,k,1) = ep2 * qs(i,k,1) / (p(i,k) - qs(i,k,1))
-          ! qs(i,k,1) = max(qs(i,k,1),qmin)
+          ! qss(k,1)=psat*exp(logtr*(xa)+xb*(1.-tr))
+          ! qss(k,1) = min(qss(k,1),0.99*p(k))
+          ! qss(k,1) = ep2 * qss(k,1) / (p(k) - qss(k,1))
+          ! qss(k,1) = max(qss(k,1),qmin)
         ! enddo
       ! enddo
-!
+!/BLOCK 27
 !----------------------------------------------------------------
 !  pcond: condensational/evaporational rate of cloud water [HL A46] [RH83 A6]
 !     if there exists additional water vapor condensated/if
 !     evaporation of cloud water is not enough to remove subsaturation
-!
+!BLOCK 28 !0.8564219
       ! do k = kts, kte
         ! do i = its, ite
-        ! work1(i,k,1) = conden(t(i,k),q(i,k),qs(i,k,1),xl(i,k),cpm(i,k))
-          ! work1(i,k,1) = ((max(q(i,k),qmin)-(qs(i,k,1)))/(1.+(xl(i,k))         &   
-                        ! *(xl(i,k))/(rv*(cpm(i,k)))*(qs(i,k,1))                 &
+          ! work1(i,k,1) = ((max(q(i,k),qmin)-(qss(k,1)))/(1.+(xl(i,k))         &   
+                        ! *(xl(i,k))/(rv*(cpm(i,k)))*(qss(k,1))                 &
                         ! /((t(i,k))*(t(i,k)))))
           ! work2(i,k) = qci(i,k,1)+work1(i,k,1)
           ! pcond(i,k) = min(max(work1(i,k,1)/dtcld,0.),max(q(i,k),0.)/dtcld)
@@ -1200,19 +1230,22 @@ CONTAINS
           ! t(i,k) = t(i,k)+pcond(i,k)*xl(i,k)/cpm(i,k)*dtcld
         ! enddo
       ! enddo
-!
+!/BLOCK 28
 !
 !----------------------------------------------------------------
 !     padding for small values
-!
+!BLOCK 29
       ! do k = kts, kte
         ! do i = its, ite
           ! if(qci(i,k,1).le.qmin) qci(i,k,1) = 0.0
           ! if(qci(i,k,2).le.qmin) qci(i,k,2) = 0.0
+		  !! th(i,k)=t(i,k)/pii(i,k) !10/12/2023
         ! enddo
       ! enddo
-    enddo                  ! big loops
+!/BLOCK 29
+   ! enddo                  ! big loops
   END SUBROUTINE wsm52d
+
 ! ...................................................................
 !--------------------------------------------------------------------------
       REAL FUNCTION fpvs(t,ice,rd,rv,cvap,cliq,cice,hvap,hsub,psat,t0c)
@@ -1643,10 +1676,150 @@ CONTAINS
 ! end of #ifndef XEON_OPTIMIZED_WSM5
 
 ! remainder of routines are common to original and MIC version
+      subroutine refl10cm_wsm5_x (qv1d, qr1d, qs1d,                       &
+                       th, pii, p1d, dBZ, kts, kte, ii, jj)
+      !newCode begin
+      !$acc routine(rayleigh_soak_wetgraupel)
+      !newCode end
 
+      IMPLICIT NONE
+!$acc routine seq
+!..Sub arguments
+      INTEGER, INTENT(IN):: kts, kte, ii, jj
+      REAL, DIMENSION(kts:kte), INTENT(IN)::                            &
+                      qv1d, qr1d, qs1d, th, pii, p1d
+      REAL, DIMENSION(kts:kte), INTENT(INOUT):: dBZ
+
+!..Local variables
+      REAL, DIMENSION(kts:kte):: temp, pres, qv, rho
+      REAL, DIMENSION(kts:kte):: rr, rs
+      REAL:: temp_C
+
+      DOUBLE PRECISION, DIMENSION(kts:kte):: ilamr, ilams
+      DOUBLE PRECISION, DIMENSION(kts:kte):: N0_r, N0_s
+      DOUBLE PRECISION:: lamr, lams
+      LOGICAL, DIMENSION(kts:kte):: L_qr, L_qs
+
+      REAL, DIMENSION(kts:kte):: ze_rain, ze_snow
+      DOUBLE PRECISION:: fmelt_s
+
+      INTEGER:: i, k, k_0, kbot, n
+      LOGICAL:: melti
+
+      DOUBLE PRECISION:: cback, x, eta, f_d
+      REAL, PARAMETER:: R=287.
+
+!+---+
+
+      do k = kts, kte
+         dBZ(k) = -35.0
+      enddo
+
+!+---+-----------------------------------------------------------------+
+!..Put column of data into local arrays.
+!+---+-----------------------------------------------------------------+
+      do k = kts, kte
+         temp(k) = th(k)*pii(k) !t1d(k) 04/12/2023
+         temp_C = min(-0.001, temp(K)-273.15)
+         qv(k) = MAX(1.E-10, qv1d(k))
+         pres(k) = p1d(k)
+         rho(k) = 0.622*pres(k)/(R*temp(k)*(qv(k)+0.622))
+
+         if (qr1d(k) .gt. 1.E-9) then
+            rr(k) = qr1d(k)*rho(k)
+            N0_r(k) = n0r
+            lamr = (xam_r*xcrg(3)*N0_r(k)/rr(k))**(1./xcre(1))
+            ilamr(k) = 1./lamr
+            L_qr(k) = .true.
+         else
+            rr(k) = 1.E-12
+            L_qr(k) = .false.
+         endif
+
+         if (qs1d(k) .gt. 1.E-9) then
+            rs(k) = qs1d(k)*rho(k)
+            N0_s(k) = min(n0smax, n0s*exp(-alpha*temp_C))
+            lams = (xam_s*xcsg(3)*N0_s(k)/rs(k))**(1./xcse(1))
+            ilams(k) = 1./lams
+            L_qs(k) = .true.
+         else
+            rs(k) = 1.E-12
+            L_qs(k) = .false.
+         endif
+      enddo
+
+!+---+-----------------------------------------------------------------+
+!..Locate K-level of start of melting (k_0 is level above).
+!+---+-----------------------------------------------------------------+
+      melti = .false.
+      k_0 = kts
+      do k = kte-1, kts, -1
+         if ( (temp(k).gt.273.15) .and. L_qr(k) .and. L_qs(k+1) ) then
+            k_0 = MAX(k+1, k_0)
+            melti=.true.
+            goto 195
+         endif
+      enddo
+ 195  continue
+
+!+---+-----------------------------------------------------------------+
+!..Assume Rayleigh approximation at 10 cm wavelength. Rain (all temps)
+!.. and non-water-coated snow and graupel when below freezing are
+!.. simple. Integrations of m(D)*m(D)*N(D)*dD.
+!+---+-----------------------------------------------------------------+
+
+      do k = kts, kte
+         ze_rain(k) = 1.e-22
+         ze_snow(k) = 1.e-22
+         if (L_qr(k)) ze_rain(k) = N0_r(k)*xcrg(4)*ilamr(k)**xcre(4)
+         if (L_qs(k)) ze_snow(k) = (0.176/0.93) * (6.0/PI)*(6.0/PI)     &
+                                 * (xam_s/900.0)*(xam_s/900.0)          &
+                                 * N0_s(k)*xcsg(4)*ilams(k)**xcse(4)
+      enddo
+
+
+!+---+-----------------------------------------------------------------+
+!..Special case of melting ice (snow/graupel) particles.  Assume the
+!.. ice is surrounded by the liquid water.  Fraction of meltwater is
+!.. extremely simple based on amount found above the melting level.
+!.. Uses code from Uli Blahak (rayleigh_soak_wetgraupel and supporting
+!.. routines).
+!+---+-----------------------------------------------------------------+
+
+      if (melti .and. k_0.ge.kts+1) then
+       do k = k_0-1, kts, -1
+
+!..Reflectivity contributed by melting snow
+          if (L_qs(k) .and. L_qs(k_0) ) then
+           fmelt_s = MAX(0.005d0, MIN(1.0d0-rs(k)/rs(k_0), 0.99d0))
+           eta = 0.d0
+           lams = 1./ilams(k)
+           do n = 1, nrbins
+              x = xam_s * xxDs(n)**xbm_s
+              ! call rayleigh_soak_wetgraupel (x,DBLE(xocms),DBLE(xobms), &
+                    ! fmelt_s, melt_outside_s, m_w_0, m_i_0, lamda_radar, &
+                    ! CBACK, mixingrulestring_s, matrixstring_s,          &
+                    ! inclusionstring_s, hoststring_s,                    &
+                    ! hostmatrixstring_s, hostinclusionstring_s)
+              f_d = N0_s(k)*xxDs(n)**xmu_s * DEXP(-lams*xxDs(n))
+              eta = eta + f_d * CBACK * simpson(n) * xdts(n)
+           enddo
+           ze_snow(k) = SNGL(lamda4 / (pi5 * K_w) * eta)
+          endif
+       enddo
+      endif
+
+      do k = kte, kts, -1
+         dBZ(k) = 10.*log10((ze_rain(k)+ze_snow(k))*1.d18)
+      enddo
+
+      end subroutine refl10cm_wsm5_x
 !+---+-----------------------------------------------------------------+
       subroutine refl10cm_wsm5 (qv1d, qr1d, qs1d,                       &
                        t1d, p1d, dBZ, kts, kte, ii, jj)
+      !newCode begin
+      !$acc routine(rayleigh_soak_wetgraupel)
+      !newCode end
 
       IMPLICIT NONE
 
@@ -1762,11 +1935,11 @@ CONTAINS
            lams = 1./ilams(k)
            do n = 1, nrbins
               x = xam_s * xxDs(n)**xbm_s
-              call rayleigh_soak_wetgraupel (x,DBLE(xocms),DBLE(xobms), &
-                    fmelt_s, melt_outside_s, m_w_0, m_i_0, lamda_radar, &
-                    CBACK, mixingrulestring_s, matrixstring_s,          &
-                    inclusionstring_s, hoststring_s,                    &
-                    hostmatrixstring_s, hostinclusionstring_s)
+              ! call rayleigh_soak_wetgraupel (x,DBLE(xocms),DBLE(xobms), &
+                    ! fmelt_s, melt_outside_s, m_w_0, m_i_0, lamda_radar, &
+                    ! CBACK, mixingrulestring_s, matrixstring_s,          &
+                    ! inclusionstring_s, hoststring_s,                    &
+                    ! hostmatrixstring_s, hostinclusionstring_s)
               f_d = N0_s(k)*xxDs(n)**xmu_s * DEXP(-lams*xxDs(n))
               eta = eta + f_d * CBACK * simpson(n) * xdts(n)
            enddo
@@ -1878,6 +2051,102 @@ CONTAINS
       endif
       END FUNCTION rgmma
 
+     subroutine effectRad_wsm5_x (th, pii, qc, qi, qs, rho, qmin, t0c,        &
+                                re_qc, re_qi, re_qs, kts, kte, ii, jj)
+
+!-----------------------------------------------------------------------
+!  Compute radiation effective radii of cloud water, ice, and snow for 
+!  single-moment microphysics.
+!  These are entirely consistent with microphysics assumptions, not
+!  constant or otherwise ad hoc as is internal to most radiation
+!  schemes.  
+!  Coded and implemented by Soo ya Bae, KIAPS, January 2015.
+!-----------------------------------------------------------------------
+
+      implicit none
+!$acc routine seq
+!..Sub arguments
+      integer, intent(in) :: kts, kte, ii, jj
+      real, intent(in) :: qmin
+      real, intent(in) :: t0c
+      ! real, dimension( kts:kte ), intent(in)::  t !30/11/2023
+	  real, dimension( kts:kte ), intent(in)::  th, pii
+      real, dimension( kts:kte ), intent(in)::  qc
+      real, dimension( kts:kte ), intent(in)::  qi
+      real, dimension( kts:kte ), intent(in)::  qs
+      real, dimension( kts:kte ), intent(in)::  rho
+      real, dimension( kts:kte ), intent(inout):: re_qc
+      real, dimension( kts:kte ), intent(inout):: re_qi
+      real, dimension( kts:kte ), intent(inout):: re_qs
+!..Local variables
+      integer:: i,k
+      integer :: inu_c
+      real, dimension( kts:kte ):: ni
+      real, dimension( kts:kte ):: rqc
+      real, dimension( kts:kte ):: rqi
+      real, dimension( kts:kte ):: rni
+      real, dimension( kts:kte ):: rqs
+      real :: temp
+      real :: lamdac
+      real :: supcol, n0sfac, lamdas
+      real :: diai      ! diameter of ice in m
+      logical :: has_qc, has_qi, has_qs
+!..Minimum microphys values
+      real, parameter :: R1 = 1.E-12
+      real, parameter :: R2 = 1.E-6
+!..Mass power law relations:  mass = am*D**bm
+      real, parameter :: bm_r = 3.0
+      real, parameter :: obmr = 1.0/bm_r
+      real, parameter :: nc0  = 3.E8
+!-----------------------------------------------------------------------
+      has_qc = .false.
+      has_qi = .false.
+      has_qs = .false.
+
+      do k = kts, kte
+        ! for cloud
+        rqc(k) = max(R1, qc(k)*rho(k))
+        if (rqc(k).gt.R1) has_qc = .true.
+        ! for ice
+        rqi(k) = max(R1, qi(k)*rho(k))
+        temp = (rho(k)*max(qi(k),qmin))
+        temp = sqrt(sqrt(temp*temp*temp))
+        ni(k) = min(max(5.38e7*temp,1.e3),1.e6)
+        rni(k)= max(R2, ni(k)*rho(k))
+        if (rqi(k).gt.R1 .and. rni(k).gt.R2) has_qi = .true.
+        ! for snow
+        rqs(k) = max(R1, qs(k)*rho(k))
+        if (rqs(k).gt.R1) has_qs = .true.
+      enddo
+
+      if (has_qc) then
+        do k=kts,kte
+          if (rqc(k).le.R1) CYCLE
+          lamdac   = (pidnc*nc0/rqc(k))**obmr
+          re_qc(k) =  max(2.51E-6,min(1.5*(1.0/lamdac),50.E-6))
+        enddo
+      endif
+
+     if (has_qi) then
+        do k=kts,kte
+          if (rqi(k).le.R1 .or. rni(k).le.R2) CYCLE
+          diai = 11.9*sqrt(rqi(k)/ni(k))
+          re_qi(k) = max(10.01E-6,min(0.75*0.163*diai,125.E-6))
+        enddo
+      endif
+
+      if (has_qs) then
+        do k=kts,kte
+          if (rqs(k).le.R1) CYCLE
+          ! supcol = t0c-t(k) th(i,k,j)*pii(i,k,j) !30/11/2023
+		  supcol = t0c-(th(k)*pii(k))
+          n0sfac = max(min(exp(alpha*supcol),n0smax/n0s),1.)
+          lamdas = sqrt(sqrt(pidn0s*n0sfac/rqs(k)))
+          re_qs(k) = max(25.E-6,min(0.5*(1./lamdas), 999.E-6))
+        enddo
+      endif
+
+      end subroutine effectRad_wsm5_x
 !-----------------------------------------------------------------------
      subroutine effectRad_wsm5 (t, qc, qi, qs, rho, qmin, t0c,        &
                                 re_qc, re_qi, re_qs, kts, kte, ii, jj)

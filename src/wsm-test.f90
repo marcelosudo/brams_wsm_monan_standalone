@@ -156,15 +156,15 @@ program wsm_test
       !  ,rel_1d  &
       !  ,rei_1d             
   real, allocatable, dimension(:) :: &
-       th, pi_phy, qv_curr, qc_curr, qi_curr, qr_curr, qs_curr
+       th, pi_phy, qv_curr, qc_curr, qi_curr, qr_curr, qs_curr, air_dens, p, dz8w
   real, allocatable, dimension(:,:,:) :: &
        ! th       &
-       dz8w     &
+       ! dz8w     &
        ! ,pi_phy   &
-       ,p        &
-       ,air_dens &
+       ! ,p        &
+       ! ,air_dens &
        ! ,w 		  &
-       ,qg_curr &
+       qg_curr &
        ,qh_curr,re_cloud, re_ice, re_snow, orho	      &
        ,hgt, refl_10cm , rainprod,evapprod
 
@@ -249,10 +249,10 @@ program wsm_test
 
      !---------  Local vars
      allocate(th        (kms:kme)) ;th       = 0.0 
-     allocate(dz8w      ( ims:ime, kms:kme, jms:jme )) ;dz8w     = 0.0 
+     allocate(dz8w      (kms:kme)) ;dz8w     = 0.0 
      allocate(pi_phy    (kms:kme)) ;pi_phy   = 0.0 
-     allocate(p         ( ims:ime, kms:kme, jms:jme )) ;p        = 0.0 
-     allocate(air_dens  ( ims:ime, kms:kme, jms:jme )) ;air_dens = 0.0 
+     allocate(p         (kms:kme)) ;p        = 0.0 
+     allocate(air_dens  (kms:kme)) ;air_dens = 0.0 
      ! allocate(w         ( ims:ime, kms:kme, jms:jme )) ;w        = 0.0 
      allocate(qv_curr   (kms:kme)) ;qv_curr  = 0.0 
      allocate(qc_curr   (kms:kme)) ;qc_curr  = 0.0 
@@ -478,10 +478,10 @@ program wsm_test
 
            pi_phy  (k)= (pp(kr,i,j)+pi0(kr,i,j))*cpi ! Exner function/cp (dimensionless)
 
-           P   (1,k,1)= ( (pp(kr,i,j)+pi0(kr,i,j))*cpi )** cpor * p00      ! pressure(Pa)
+           P   (k)= ( (pp(kr,i,j)+pi0(kr,i,j))*cpi )** cpor * p00      ! pressure(Pa)
            ! W   (1,k,1)= wp(kr,i,j)    ! vertical velocity (m/s) ! must be at center or face? ASK !21/11/2023
 
-           dz8w   (1,k,1)= rtgt_1d/dzt(kr) ! layer thickness (m) 
+           dz8w   (k)= rtgt_1d/dzt(kr) ! layer thickness (m) 
            !print*,'dz8',k,dz8w   (1,k,1)
         enddo 
 
@@ -505,7 +505,7 @@ program wsm_test
            TH (k) = tairstr / pi_phy(k)
 
            !- air density
-           air_dens(1,k,1) = P(1,k,1)/(287.04*tempK*(1.+0.608*qv_curr(k)))
+           air_dens(k) = P(k)/(287.04*tempK*(1.+0.608*qv_curr(k)))
            !air_dens(1,k,1)= dn0(kr) 
 
         ENDDO !PAREI 26/10
