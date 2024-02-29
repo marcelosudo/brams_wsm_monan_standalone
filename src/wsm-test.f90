@@ -6,7 +6,7 @@ program wsm_test
 
    USE module_mp_radar
 !!  use module_mp_wsm3, only: wsm3init, wsm3
-  use module_mp_wsm5, only: wsm5init, wsm5
+  use module_mp_wsm5, only: wsm5init, wsm5, provaconc3d
 !!  use module_mp_wsm6, only: wsm6init, wsm6
 !!  use module_mp_wsm7, only: wsm7init, wsm7
   use rconstants, only: p00,cpor,alvl,alvi,cpi,cpi4,cp253i
@@ -185,6 +185,32 @@ program wsm_test
   real :: wp_sum, thp_sum, theta_sum, rtp_sum, rv_sum, rrp_sum, rcp_sum
   real :: accpr_sum, pcprr_sum
   
+  !! ESTRATÉGIA 1 - INÍCIO
+  REAL, allocatable, DIMENSION( : , : ) ::                         &
+                                                           pigen, &
+                                                           pidep, &
+                                                           psdep, &
+                                                           praut, &
+                                                           psaut, &
+                                                           prevp, &
+                                                           psevp, &
+                                                           pracw, &
+                                                           psacw, &
+                                                           psaci, &
+                                                           pcond, &
+                                                           psmlt
+  REAL, allocatable, DIMENSION( : , : , :) ::                      &
+                                                            falk, &
+                                                            fall
+  REAL, allocatable, DIMENSION( : , : ) ::                         &
+                                                           falkc, &
+                                                           fallc, &
+                                                             xni
+  !$acc declare create(prevp,psdep,praut,psaut,pracw,psaci)
+  !$acc declare create(psacw,pigen,pidep,pcond,psmlt,psevp)
+  !$acc declare create(falk,fall,fallc,falkc,xni)
+  !! ESTRATÉGIA 1 - FIM
+
   !! $acc routine (wsm3)
 !!$acc routine (wsm5)
   !- read namelist  
@@ -279,6 +305,26 @@ program wsm_test
      ! allocate(hail      ( ims:ime,jms:jme )) ;hail         = 0.0
      ! allocate(hailncv   ( ims:ime,jms:jme )) ;hailncv      = 0.0
      allocate(sr        ( ims:ime,jms:jme )) ;sr           = 0.0
+
+  !! ESTRATÉGIA 1 - INÍCIO	 
+ allocate(pigen( its:ite , kts:kte )); pigen = 0.0
+ allocate(pidep( its:ite , kts:kte )); pidep = 0.0
+ allocate(psdep( its:ite , kts:kte )); psdep = 0.0
+ allocate(praut( its:ite , kts:kte )); praut = 0.0
+ allocate(psaut( its:ite , kts:kte )); psaut = 0.0
+ allocate(prevp( its:ite , kts:kte )); prevp = 0.0
+ allocate(psevp( its:ite , kts:kte )); psevp = 0.0
+ allocate(pracw( its:ite , kts:kte )); pracw = 0.0
+ allocate(psacw( its:ite , kts:kte )); psacw = 0.0
+ allocate(psaci( its:ite , kts:kte )); psaci = 0.0
+ allocate(pcond( its:ite , kts:kte )); pcond = 0.0
+ allocate(psmlt( its:ite , kts:kte )); psmlt = 0.0
+ allocate(falk( its:ite , kts:kte , 2)); falk = 0.0
+ allocate(fall( its:ite , kts:kte , 2)); fall = 0.0
+ allocate(falkc( its:ite , kts:kte )); falkc = 0.0
+ allocate(fallc( its:ite , kts:kte )); fallc = 0.0
+ allocate(xni( its:ite , kts:kte )); xni = 0.0                                                             
+  !! ESTRATÉGIA 1 - FIM	
 
   endif
 
@@ -509,9 +555,12 @@ program wsm_test
            !air_dens(1,k,1)= dn0(kr) 
 
         ENDDO !PAREI 26/10
-
+		
+	call provaconc3d(prevp,psdep,praut,psaut,pracw,psaci,psacw,pigen,pidep,pcond,psmlt, &
+          psevp,falk,fall,fallc,falkc,xni, kts, kte, its, ite)
+		  
       !   ! ** WSM5 main routine **
-        IF(mcphys_type == 5)                    &   
+        IF(mcphys_type == 5)                    &    
              CALL wsm5(                         &
              TH,                        &! potential temperature(K) (private)
              qv_curr,                   &! QV=qv_curr, (private)    
