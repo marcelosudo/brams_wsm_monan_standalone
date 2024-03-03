@@ -1,12 +1,13 @@
 program wsm_test
-!  !$acc routine(wsm5, wsm52D)
+ !!$acc routine(wsm5, wsm52D)
 !!!$acc routine(wsm5, wsm5x)
   !!$acc routine(refl10cm_wsm5)
 !! !$acc routine(effectRad_wsm5_x)
+!!$acc routine(provaconc3d)
 
    USE module_mp_radar
 !!  use module_mp_wsm3, only: wsm3init, wsm3
-  use module_mp_wsm5, only: wsm5init, wsm5, provaconc3d
+  use module_mp_wsm5, only: wsm5init, wsm5, provaconc3d!, provaconc
 !!  use module_mp_wsm6, only: wsm6init, wsm6
 !!  use module_mp_wsm7, only: wsm7init, wsm7
   use rconstants, only: p00,cpor,alvl,alvi,cpi,cpi4,cp253i
@@ -186,7 +187,7 @@ program wsm_test
   real :: accpr_sum, pcprr_sum
   
   !! ESTRATÉGIA 1 - INÍCIO
-  REAL, allocatable, DIMENSION( : , : ) ::                         &
+  REAL, allocatable, DIMENSION( : , : , :) ::                         &
                                                            pigen, &
                                                            pidep, &
                                                            psdep, &
@@ -200,17 +201,16 @@ program wsm_test
                                                            pcond, &
                                                            psmlt
   REAL, allocatable, DIMENSION( : , : , :) ::                      &
-                                                            falk, &
-                                                            fall
-  REAL, allocatable, DIMENSION( : , : ) ::                         &
+                                                            falk1, &
+															falk2, &
+                                                            fall1, &
+															fall2
+  REAL, allocatable, DIMENSION( : , : , :) ::                         &
                                                            falkc, &
                                                            fallc, &
                                                              xni
-  !$acc declare create(prevp,psdep,praut,psaut,pracw,psaci)
-  !$acc declare create(psacw,pigen,pidep,pcond,psmlt,psevp)
-  !$acc declare create(falk,fall,fallc,falkc,xni)
   !! ESTRATÉGIA 1 - FIM
-
+  
   !! $acc routine (wsm3)
 !!$acc routine (wsm5)
   !- read namelist  
@@ -305,27 +305,31 @@ program wsm_test
      ! allocate(hail      ( ims:ime,jms:jme )) ;hail         = 0.0
      ! allocate(hailncv   ( ims:ime,jms:jme )) ;hailncv      = 0.0
      allocate(sr        ( ims:ime,jms:jme )) ;sr           = 0.0
-
+	 
   !! ESTRATÉGIA 1 - INÍCIO	 
- allocate(pigen( its:ite , kts:kte )); pigen = 0.0
- allocate(pidep( its:ite , kts:kte )); pidep = 0.0
- allocate(psdep( its:ite , kts:kte )); psdep = 0.0
- allocate(praut( its:ite , kts:kte )); praut = 0.0
- allocate(psaut( its:ite , kts:kte )); psaut = 0.0
- allocate(prevp( its:ite , kts:kte )); prevp = 0.0
- allocate(psevp( its:ite , kts:kte )); psevp = 0.0
- allocate(pracw( its:ite , kts:kte )); pracw = 0.0
- allocate(psacw( its:ite , kts:kte )); psacw = 0.0
- allocate(psaci( its:ite , kts:kte )); psaci = 0.0
- allocate(pcond( its:ite , kts:kte )); pcond = 0.0
- allocate(psmlt( its:ite , kts:kte )); psmlt = 0.0
- allocate(falk( its:ite , kts:kte , 2)); falk = 0.0
- allocate(fall( its:ite , kts:kte , 2)); fall = 0.0
- allocate(falkc( its:ite , kts:kte )); falkc = 0.0
- allocate(fallc( its:ite , kts:kte )); fallc = 0.0
- allocate(xni( its:ite , kts:kte )); xni = 0.0                                                             
-  !! ESTRATÉGIA 1 - FIM	
-
+ allocate(pigen( m1,m2,m3 )); pigen = 0.0
+ allocate(pidep( m1,m2,m3 )); pidep = 0.0
+ allocate(psdep( m1,m2,m3 )); psdep = 0.0
+ allocate(praut( m1,m2,m3 )); praut = 0.0
+ allocate(psaut( m1,m2,m3 )); psaut = 0.0
+ allocate(prevp( m1,m2,m3 )); prevp = 0.0
+ allocate(psevp( m1,m2,m3 )); psevp = 0.0
+ allocate(pracw( m1,m2,m3 )); pracw = 0.0
+ allocate(psacw( m1,m2,m3 )); psacw = 0.0
+ allocate(psaci( m1,m2,m3 )); psaci = 0.0
+ allocate(pcond( m1,m2,m3 )); pcond = 0.0
+ allocate(psmlt( m1,m2,m3 )); psmlt = 0.0
+ allocate(falk1( m1,m2,m3)); falk1 = 0.0
+ allocate(falk2( m1,m2,m3)); falk2 = 0.0
+ allocate(fall1( m1,m2,m3)); fall1 = 0.0
+ allocate(fall2( m1,m2,m3)); fall2 = 0.0
+ allocate(falkc( m1,m2,m3 )); falkc = 0.0
+ allocate(fallc( m1,m2,m3 )); fallc = 0.0
+ allocate(xni( m1,m2,m3 )); xni = 0.0
+  !!!$acc declare create(prevp,psdep,praut,psaut,pracw,psaci)
+  !!!$acc declare create(psacw,pigen,pidep,pcond,psmlt,psevp)
+  !!!$acc declare create(falk1, falk2,fall1,fall2,fallc,falkc,xni)                                                             
+  !! ESTRATÉGIA 1 - FIM															 
   endif
 
   read(l_unit) mcphys_type , ilwrtyp, iswrtyp
@@ -417,16 +421,28 @@ program wsm_test
   !   ELSE
   has_reqc= 0 ; has_reqi= 0 ; has_reqs= 0 
   !   ENDIF
+
+  ! ** initial definitions **
+  dt= dtlt        ! time step            (s)
+		
   call cpu_time(t1)
+  
+  !$acc data create(prevp,psdep,praut,psaut,pracw,psaci, &
+  !$acc				psacw,pigen,pidep,pcond,psmlt,psevp, &
+  !$acc             falk1, falk2,fall1,fall2,fallc,falkc,xni, &
+  !$acc				rhp,rgp) & 
+  !$acc      copy(accpr,accps)
+
   !$acc parallel loop private(k, kr, qv_curr, qc_curr, qr_curr, &
   !$acc qi_curr, qs_curr, qg_curr, qh_curr, pi_phy, P, dz8w, &
   !$acc dt, SR, refl_10cm, tempk, til, rliq, rice, qhydm, tairstr, TH, air_dens, &
   !$acc RAINNC, RAINNCV, SNOWNC, SNOWNCV, &
   !$acc re_cloud, re_ice, re_snow) &
   !$acc collapse(2)
-  do j = ja,jz
-     do i = ia,iz
-
+  ! $acc parallel loop collapse(2)
+  do j = 1,m3 ! ja,jz !1,m3
+     do i = 1,m2 !ia,iz !1,m2
+		if (i>=ia .and. i<=iz .and. j>=ja .and. j<=jz) then
       !   ! **Local copies per each column** COMENTADA 26/10
       !   !- column quantities
       !   thp_1d   (1:m1)= thp  (1:m1,i,j)
@@ -490,21 +506,18 @@ program wsm_test
       !      has_reqc= 0 ; has_reqi= 0 ; has_reqs= 0 
       ! !   ENDIF
 
-
-        ! ** initial definitions **
-        dt= dtlt        ! time step            (s)
         !rainprod  =0.0  ! for scaveging   aerosols/gases !MSUDO - nao usado em WSM5
         !evapprod  =0.0  ! for evaporation aerosols/gases !MSUDO - nao usado em WSM5
-        SR        =0.0  ! fraction of snow of the total water
+        SR        =0.0  ! fraction of snow of the total water 29/02/2024
         ! ( for land surface models)
-        refl_10cm =0.0  ! 
+        refl_10cm =0.0  ! 29/02/2024
         !ke_diag   = kte !MSUDO - nao usado em WSM5
 
         ! **apparently another copies** ??
         !- surface precipitation (total accumulated)
         !!!!$acc serial
-        RAINNC    (1,1)=  accpr(i,j) !accpr_1d 21/11/2023 !- rain+ice+snow+graupel+hail
-        SNOWNC    (1,1)=  accps(i,j) !accps_1d 21/11/2023!- ice+snow
+        RAINNC    (1,1)=  accpr(i,j) !accpr_1d 21/11/2023 !- rain+ice+snow+graupel+hail !29/02/2024
+        SNOWNC    (1,1)=  accps(i,j) !accps_1d 21/11/2023!- ice+snow !29/02/2024
         ! GRAUPELNC (1,1)=  accpg_1d !- graupel 21/11/2023
         ! HAIL      (1,1)=  accph_1d !- hail 21/11/2023
         !!!!$acc end serial
@@ -528,7 +541,7 @@ program wsm_test
            ! W   (1,k,1)= wp(kr,i,j)    ! vertical velocity (m/s) ! must be at center or face? ASK !21/11/2023
 
            dz8w   (k)= rtgt_1d/dzt(kr) ! layer thickness (m) 
-           !print*,'dz8',k,dz8w   (1,k,1)
+           ! print*,'dz8',k,dz8w   (1,k,1)
         enddo 
 
         ! **Second Loop over a vertical column**
@@ -547,68 +560,67 @@ program wsm_test
            else
               tairstr = til * (1. + qhydm * cp253i)
            endif
-           !- updated potential temperature TH in Kelvin (adv+dif+rad+conv+)
+           ! - updated potential temperature TH in Kelvin (adv+dif+rad+conv+)
            TH (k) = tairstr / pi_phy(k)
 
-           !- air density
+           ! - air density
            air_dens(k) = P(k)/(287.04*tempK*(1.+0.608*qv_curr(k)))
-           !air_dens(1,k,1)= dn0(kr) 
-
+           ! air_dens(1,k,1)= dn0(kr) 
         ENDDO !PAREI 26/10
 		
-	call provaconc3d(prevp,psdep,praut,psaut,pracw,psaci,psacw,pigen,pidep,pcond,psmlt, &
-          psevp,falk,fall,fallc,falkc,xni, kts, kte, its, ite)
-		  
+	! call provaconc3d(prevp,psdep,praut,psaut,pracw,psaci,psacw,pigen,pidep,pcond,psmlt, &
+          ! psevp,falk1,falk2,fall1,fall2,fallc,falkc,xni, kts, kte, i, j, m1,m2,m3)
       !   ! ** WSM5 main routine **
-        IF(mcphys_type == 5)                    &    
-             CALL wsm5(                         &
-             TH,                        &! potential temperature(K) (private)
-             qv_curr,                   &! QV=qv_curr, (private)    
-             qc_curr,                   &! QC=qc_curr, (private)
-             qr_curr,                   &! QR=qr_curr, (private) 
-             qi_curr,                   &! QI=qi_curr, (private)    
-             qs_curr,                   &! QS=qs_curr, (private)  
-             air_dens,                  &! (private)   
-             pi_phy,                    &! exner function (dimensionless) (private)
-             P,                         &! pressure(Pa) (private)
-             dz8w,                      &! deltaz (private)
-             dt,      &                  ! time step (s) (private)
-             g,       &
-             cp,      &
-             cpv,     &		! COMENTAR - marcar o q é privado
-             r_d,     &
-             r_v,     &     
-             svpt0,   &
-             ep_1,    &
-             ep_2,    &
-             epsilon, &
-             xls,     &
-             xlv,     &
-             xlf,     &
-             rhoair0, &
-             rhowater,&  
-             cliq,    &
-             cice,    &
-             psat,    &     
-             RAINNC,                    & !(private)
-             RAINNCV,                   & !(private)
-             SNOWNC,                    & !(private)
-             SNOWNCV,                   & !(private)
-             SR,                        & !(private)
-             refl_10cm,                 & !(private)
-             diagflag,                  &
-             do_radar_ref,              &
-             has_reqc,                  & 
-             has_reqi,                  &  
-             has_reqs,                  & 
-             re_cloud,                  & !(private)
-             re_ice,                    & !(private)
-             re_snow,                   & !(private)
-             IDS,IDE, JDS,JDE, KDS,KDE, &
-             IMS,IME, JMS,JME, KMS,KME, &
-             ITS,ITE, JTS,JTE, KTS,KTE  &
-             )
-
+        ! IF(mcphys_type == 5) then  
+		  ! if (i>=ia .and. i<=iz .and. j>=ja .and. j<=jz) &
+             ! CALL wsm5(                         &
+             ! TH,                        &! potential temperature(K) (private)
+             ! qv_curr,                   &! QV=qv_curr, (private)    
+             ! qc_curr,                   &! QC=qc_curr, (private)
+             ! qr_curr,                   &! QR=qr_curr, (private) 
+             ! qi_curr,                   &! QI=qi_curr, (private)    
+             ! qs_curr,                   &! QS=qs_curr, (private)  
+             ! air_dens,                  &! (private)   
+             ! pi_phy,                    &! exner function (dimensionless) (private)
+             ! P,                         &! pressure(Pa) (private)
+             ! dz8w,                      &! deltaz (private)
+             ! dt,      &                  ! time step (s) (private)
+             ! g,       &
+             ! cp,      &
+             ! cpv,     &		! COMENTAR - marcar o q é privado
+             ! r_d,     &
+             ! r_v,     &     
+             ! svpt0,   &
+             ! ep_1,    &
+             ! ep_2,    &
+             ! epsilon, &
+             ! xls,     &
+             ! xlv,     &
+             ! xlf,     &
+             ! rhoair0, &
+             ! rhowater,&  
+             ! cliq,    &
+             ! cice,    &
+             ! psat,    &     
+             ! RAINNC,                    & !(private)
+             ! RAINNCV,                   & !(private)
+             ! SNOWNC,                    & !(private)
+             ! SNOWNCV,                   & !(private)
+             ! SR,                        & !(private)
+             ! refl_10cm,                 & !(private)
+             ! diagflag,                  &
+             ! do_radar_ref,              &
+             ! has_reqc,                  & 
+             ! has_reqi,                  &  
+             ! has_reqs,                  & 
+             ! re_cloud,                  & !(private)
+             ! re_ice,                    & !(private)
+             ! re_snow,                   & !(private)
+             ! IDS,IDE, JDS,JDE, KDS,KDE, &
+             ! IMS,IME, JMS,JME, KMS,KME, &
+             ! ITS,ITE, JTS,JTE, KTS,KTE  &
+             ! )
+		! endif
       !   ! ** Third loop over a colunm K, returning values **
       !   !- updated variables after microphysics processes (from WSM to BRAMS)
         DO k=1,kme-1
@@ -636,7 +648,7 @@ program wsm_test
            rliq     =  qc_curr(k) + qr_curr(k)       
            rice     =  qi_curr(k) + qs_curr(k) + qg_curr(1,k,1) + qh_curr(1,k,1)
 
-           !- update liq-ice potential temperature THP in Kelvin including microphysics processes
+           ! - update liq-ice potential temperature THP in Kelvin including microphysics processes
            thp(kr,i,j)  =   TH(k)*(1. + alvl * rliq/(cp * max(tempK,253.))  &
                 + alvi * rice/(cp * max(tempK,253.)) ) **(-1.0)      
         ENDDO
@@ -709,9 +721,10 @@ program wsm_test
            ! accph(i,j) = accph_1d
            ! pcprh(i,j) = pcprh_1d
         ! endif
+		endif
      enddo; enddo ! loop i,j
      !$acc end parallel loop
-!!!!     !$acc end data
+     !$acc end data
 	 call cpu_time(t2)
 	 print *,"times DO-DO",t2,t1,t2-t1
      !=======================================================================

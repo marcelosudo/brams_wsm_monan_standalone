@@ -24,6 +24,7 @@ MODULE module_mp_wsm5
 !$acc routine(vssqrt)
 !$acc routine(cpmcal)
 !$acc routine(xlcall)
+!!$acc routine(provaconc3d)
 
    USE module_mp_radar
    !-srf
@@ -83,34 +84,6 @@ MODULE module_mp_wsm5
 !$acc declare create(rsloper3max,rslopes3max)
 !newCode end
 
-  !! ESTRATÉGIA 1 - INÍCIO
-  ! REAL, allocatable, DIMENSION( : , : ) ::                         &
-                                                           ! pigen, &
-                                                           ! pidep, &
-                                                           ! psdep, &
-                                                           ! praut, &
-                                                           ! psaut, &
-                                                           ! prevp, &
-                                                           ! psevp, &
-                                                           ! pracw, &
-                                                           ! psacw, &
-                                                           ! psaci, &
-                                                           ! pcond, &
-                                                           ! psmlt
-  ! REAL, allocatable, DIMENSION( : , : , :) ::                      &
-                                                            ! falk, &
-                                                            ! fall
-  ! REAL, allocatable, DIMENSION( : , : ) ::                         &
-                                                           ! falkc, &
-                                                           ! fallc, &
-                                                             ! xni
-  ! !$acc declare create(prevp,psdep,praut,psaut,pracw,psaci)
-  ! !$acc declare create(psacw,pigen,pidep,pcond,psmlt,psevp)
-  ! !$acc declare create(falk,fall,fallc,falkc,xni)
-  !! ESTRATÉGIA 1 - FIM
-  
-
-  
 ! Specifies code-inlining of fpvs function in WSM52D below. JM 20040507
 !
 CONTAINS
@@ -438,27 +411,18 @@ CONTAINS
 															! falk, &
                                                             ! fall
   REAL, DIMENSION( its:ite , kts:kte , 2) ::                      &
-                                                              ! rh, &
-                                                              ! qss, &
                                                           rslope, &
                                                          rslope2, &
                                                          rslope3, &
                                                          rslopeb, &
                                                          qrs_tmp, &
-                                                            ! falk, &
-                                                            ! fall, &
                                                            work1
   ! REAL, DIMENSION(kts:kte ) ::    &
                                                            ! falkc, &
                                                            ! fallc, &
                                                            ! xni
   REAL, DIMENSION( its:ite , kts:kte ) ::                         &
-                                                           ! falkc, &
-                                                           ! fallc, &
-                                                              ! xl, &
-                                                             ! cpm, &
                                                           denfac, &
-                                                             ! xni, &
                                                          denqrs1, &
                                                          denqrs2, &
                                                           denqci, &
@@ -468,14 +432,11 @@ CONTAINS
                                                            works, &
                                                           work1c, &
                                                           work2c
-  ! REAL, DIMENSION( its:ite , kts:kte ) ::                         &
-                                                         ! den_tmp, &
-                                                        ! delz_tmp
   REAL, DIMENSION( its:ite ) ::                                   &
                                                          delqrs1, &
                                                          delqrs2, &
                                                            delqi
-  ! REAL, DIMENSION(its:ite, kts:kte ) ::                         &
+  ! REAL, DIMENSION(kts:kte ) ::                         &
                                                            ! pigen, &
                                                            ! pidep, &
                                                            ! psdep, &
@@ -517,28 +478,6 @@ CONTAINS
 ! Temporaries used for inlining fpvs function
   REAL  :: dldti, xb, xai, tr, xbi, xa, hvap, cvap, hsub, dldt, ttp
   REAL  :: logtr
-  
-    !! ESTRATÉGIA 1 - INÍCIO	 
- ! allocate(pigen( its:ite , kts:kte )); pigen = 0.0
- ! allocate(pidep( its:ite , kts:kte )); pidep = 0.0
- ! allocate(psdep( its:ite , kts:kte )); psdep = 0.0
- ! allocate(praut( its:ite , kts:kte )); praut = 0.0
- ! allocate(psaut( its:ite , kts:kte )); psaut = 0.0
- ! allocate(prevp( its:ite , kts:kte )); prevp = 0.0
- ! allocate(psevp( its:ite , kts:kte )); psevp = 0.0
- ! allocate(pracw( its:ite , kts:kte )); pracw = 0.0
- ! allocate(psacw( its:ite , kts:kte )); psacw = 0.0
- ! allocate(psaci( its:ite , kts:kte )); psaci = 0.0
- ! allocate(pcond( its:ite , kts:kte )); pcond = 0.0
- ! allocate(psmlt( its:ite , kts:kte )); psmlt = 0.0
- ! allocate(falk( its:ite , kts:kte , 2)); falk = 0.0
- ! allocate(fall( its:ite , kts:kte , 2)); fall = 0.0
- ! allocate(falkc( its:ite , kts:kte )); falkc = 0.0
- ! allocate(fallc( its:ite , kts:kte )); fallc = 0.0
- ! allocate(xni( its:ite , kts:kte )); xni = 0.0
-                                                             
-  !! ESTRATÉGIA 1 - FIM	
-
 !$acc routine seq
 ! return
 !=================================================================
@@ -672,29 +611,29 @@ CONTAINS
 !     initialize the variables for microphysical physics
 !
 !BLOCK 8 !0.8294189
-      ! do k = kts, kte
-        ! do i = its, ite
-          ! prevp(i,k) = 0.
-          ! psdep(i,k) = 0.
-          ! praut(i,k) = 0.
-          ! psaut(i,k) = 0.
-          ! pracw(i,k) = 0.
-          ! psaci(i,k) = 0.
-          ! psacw(i,k) = 0.
-          ! pigen(i,k) = 0.
-          ! pidep(i,k) = 0.
-          ! pcond(i,k) = 0.
-          ! psmlt(i,k) = 0.
-          ! psevp(i,k) = 0.
-          ! falk(i,k,1) = 0.
-          ! falk(i,k,2) = 0.
-          ! fall(i,k,1) = 0.
-          ! fall(i,k,2) = 0.
-          ! fallc(i,k) = 0.
-          ! falkc(i,k) = 0.
-          ! xni(i,k) = 1.e3
-        ! enddo
-      ! enddo
+      !!! do k = kts, kte    !02/03/2024 variáveis zeradas antes do loop, na inicialização
+        !!! do i = its, ite
+          ! prevp(kts:kte) = 0.
+          ! psdep(kts:kte) = 0.
+          ! praut(kts:kte) = 0.
+          ! psaut(kts:kte) = 0.
+          ! pracw(kts:kte) = 0.
+          ! psaci(kts:kte) = 0.
+          ! psacw(kts:kte) = 0.
+          ! pigen(kts:kte) = 0.
+          ! pidep(kts:kte) = 0.
+          ! pcond(kts:kte) = 0.
+          ! psmlt(kts:kte) = 0.
+          ! psevp(kts:kte) = 0.
+          ! falk(kts:kte,1) = 0. !BAIXOU p/ 6.804927 sem essas 4 variáveis
+          ! falk(kts:kte,2) = 0. ! estava em 7,773113
+          ! fall(kts:kte,1) = 0. 
+          ! fall(kts:kte,2) = 0.
+          ! fallc(kts:kte) = 0.
+          ! falkc(kts:kte) = 0.
+          ! xni(kts:kte) = 1.e3
+        !!! enddo
+      !!! enddo
 !/BLOCK 8
 !-------------------------------------------------------------
 ! Ni: ice crystal number concentraiton   [HDC 5c]
@@ -2316,11 +2255,56 @@ CONTAINS
       end
 !-srf
 !-----------------------------------------------------------------------
+! subroutine provaconc(kts, kte)
+  ! INTEGER,      INTENT(IN   )    ::   kts,kte
+  ! REAL, DIMENSION(kts:kte ) ::                         &
+                                                           ! pigen, &
+                                                           ! pidep, &
+                                                           ! psdep, &
+                                                           ! praut, &
+                                                           ! psaut, &
+                                                           ! prevp, &
+                                                           ! psevp, &
+                                                           ! pracw, &
+                                                           ! psacw, &
+                                                           ! psaci, &
+                                                           ! pcond, &
+                                                           ! psmlt
+  ! REAL, DIMENSION(kts:kte , 2) ::                      &
+															! falk, &
+                                                            ! fall
+  ! REAL, DIMENSION(kts:kte ) ::    &
+                                                           ! falkc, &
+                                                           ! fallc, &
+                                                           ! xni
+  !!$acc routine seq
+  ! prevp(kts:kte) = 0.
+  ! psdep(kts:kte) = 0.
+  ! praut(kts:kte) = 0.
+  ! psaut(kts:kte) = 0.
+  ! pracw(kts:kte) = 0.
+  ! psaci(kts:kte) = 0.
+  ! psacw(kts:kte) = 0.
+  ! pigen(kts:kte) = 0.
+  ! pidep(kts:kte) = 0.
+  ! pcond(kts:kte) = 0.
+  ! psmlt(kts:kte) = 0.
+  ! psevp(kts:kte) = 0.
+  ! falk(kts:kte,1) = 0. !BAIXOU p/ 6.804927 sem essas 4 variáveis
+  ! falk(kts:kte,2) = 0. ! estava em 7,773113
+  ! fall(kts:kte,1) = 0. 
+  ! fall(kts:kte,2) = 0.
+  ! fallc(kts:kte) = 0.
+  ! falkc(kts:kte) = 0.
+  ! xni(kts:kte) = 1.e3
+! end
+
 subroutine provaconc3d(prevp,psdep,praut,psaut,pracw,psaci,psacw,pigen,pidep,pcond,psmlt, &
-          psevp,falk,fall,fallc,falkc,xni, kts, kte, its, ite)
+          psevp,falk1,falk2,fall1,fall2,fallc,falkc,xni, kts, kte, i, j,m1,m2,m3)
+! subroutine provaconc3d(prevp, kts, kte, i, j,m1,m2,m3)
 		  !$acc routine seq
-  INTEGER,      INTENT(IN   )    ::   its,ite, kts,kte
-    REAL, DIMENSION(its:ite , kts:kte ), INTENT(INOUT) ::                         &
+  INTEGER,      INTENT(IN   )    ::   i,j, kts,kte, m1,m2,m3
+    REAL, DIMENSION(:,:,:), INTENT(INOUT) ::                         &
                                                            pigen, &
                                                            pidep, &
                                                            psdep, &
@@ -2333,38 +2317,37 @@ subroutine provaconc3d(prevp,psdep,praut,psaut,pracw,psaci,psacw,pigen,pidep,pco
                                                            psaci, &
                                                            pcond, &
                                                            psmlt
-  REAL, DIMENSION(its:ite , kts:kte , 2), INTENT(INOUT) ::                      &
-															falk, &
-                                                            fall
-  REAL, DIMENSION(its:ite , kts:kte ), INTENT(INOUT) ::    &
+  REAL, DIMENSION(:,:,:), INTENT(INOUT) ::                      &
+															falk1,falk2, &
+                                                            fall1,fall2
+  REAL, DIMENSION(:,:,:), INTENT(INOUT) ::    &
                                                            falkc, &
                                                            fallc, &
                                                            xni
-  INTEGER :: i, k
+  INTEGER :: k
       do k = kts, kte
-        do i = its, ite
-          prevp(i,k) = 0.
-          psdep(i,k) = 0.
-          praut(i,k) = 0.
-          psaut(i,k) = 0.
-          pracw(i,k) = 0.
-          psaci(i,k) = 0.
-          psacw(i,k) = 0.
-          pigen(i,k) = 0.
-          pidep(i,k) = 0.
-          pcond(i,k) = 0.
-          psmlt(i,k) = 0.
-          psevp(i,k) = 0.
-          falk(i,k,1) = 0.
-          falk(i,k,2) = 0.
-          fall(i,k,1) = 0.
-          fall(i,k,2) = 0.
-          fallc(i,k) = 0.
-          falkc(i,k) = 0.
-          xni(i,k) = 1.e3
-        enddo
+          prevp(k,i,j) = 0.
+          psdep(k,i,j) = 0.
+          praut(k,i,j) = 0.
+          psaut(k,i,j) = 0.
+          pracw(k,i,j) = 0.
+          psaci(k,i,j) = 0.
+          psacw(k,i,j) = 0.
+          pigen(k,i,j) = 0.
+          pidep(k,i,j) = 0.
+          pcond(k,i,j) = 0.
+          psmlt(k,i,j) = 0.
+          psevp(k,i,j) = 0.
+          falk1(k,i,j) = 0.
+          falk2(k,i,j) = 0.
+          fall1(k,i,j) = 0.
+          fall2(k,i,j) = 0.
+          fallc(k,i,j) = 0.
+          falkc(k,i,j) = 0.
+          xni(k,i,j) = 1.e3
       enddo
+	  ! prevp(kts:kte,i,j) = 0.
 end
-                                                         
+		  
 END MODULE module_mp_wsm5
 !#endif
